@@ -1,0 +1,20 @@
+{
+  "LogSources": [
+    {
+      "Path": "C:/lca_win/lca_win/test*.log",
+      "Topic": "nginx"
+    },
+    {
+      "Path": "C:/lca_win/lca_win/logs/",
+      "Topic": "nginx"
+    }
+  ],
+  "Kafka": {
+    "Addresses": [
+      "192.168.18.210:9092"
+    ],
+    "MaxSize": 10000,
+    "WorkerCount": 5
+  },
+  "CollectInterval": 5
+}
