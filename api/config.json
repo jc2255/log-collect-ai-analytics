@@ -1,0 +1,19 @@
+{
+  "center": {
+    "address": "172.16.0.70:80",
+    "worker_count": 4
+  },
+  "kafka": {
+    "address": "172.16.0.70:9092",
+    "chan_max_size": 100000
+  },
+  "log": {
+    "filePath": "./logs",
+    "filename": "logagent",
+    "loglevel": "info",
+    "max_age": 7
+  },
+  "server": {
+    "port": ":8086"
+  }
+}
