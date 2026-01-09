@@ -1,0 +1,10 @@
+version: '3'
+
+services:
+  redis:
+    image: redis:latest
+    ports:
+      - "6379:6379"
+    volumes:
+      - /data/redis:/data
+    command: redis-server --appendonly yes --requirepass max2024
