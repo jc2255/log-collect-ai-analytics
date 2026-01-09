@@ -1,0 +1,27 @@
+# config.yaml
+server:
+  udp_port: 514
+  tcp_port: 1514
+  tls_port: 6514
+  cert_file: "server.crt"
+  key_file: "server.key"
+
+output:
+  console: true
+  file: true
+  json_format: false
+  directory: "./logs"
+  max_file_size: 10485760
+  max_backup_files: 5
+
+kafka:
+  enabled: true
+  brokers:
+    - "172.16.0.70:9092"
+  topic: "nginx"
+  chan_size: 10000  # 增大 channel 容量以支持高并发
+  worker_count: 16   # 增加 worker 数量以充分利用多核 CPU
+
+logging:
+  level: "info"
+  file: "syslog-server.log"
