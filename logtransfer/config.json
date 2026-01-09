@@ -1,0 +1,21 @@
+{
+    "kafka": {
+        "address": "192.168.1.110:9092",
+        "topic": "ai_nginx,ai_api,fans,nginx",
+        "group": "logCollect",
+        "workers": 8
+    },
+    "es": {
+        "address": "127.0.0.1:9200",
+        "max_chan_size": 100000,
+        "nums": 16,
+        "username": "",
+        "password": ""
+    },
+    "log": {
+        "file_path": "./logs",
+        "file_name": "logtransfer.log",
+        "log_level": "info",
+        "max_age": 7
+    }
+}
