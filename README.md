@@ -20,7 +20,7 @@
 5. 可实现日志备份存储到oss，极大的节约本地服务器磁盘存储，Elasticsearch内存占用
 
 #### 安装教程
-`视频教程 https://www.bilibili.com/video/BV1WigtzZEPD/?vd_source=34dd01124a8128710503a4608cdb4584`
+`视频教程 https://www.bilibili.com/video/BV1g86dBrE2Q/?vd_source=34dd01124a8128710503a4608cdb4584`
 `官网  https://lca.top/`
 1.  MySQL
     `cd docker-compose/mysql ` `docker-compose up -d` `账号：root，密码：max2024` `导入lca.sql`
