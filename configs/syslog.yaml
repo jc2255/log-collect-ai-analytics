@@ -1,0 +1,11 @@
+udp_port: 514
+tcp_port: 514
+api_server: "http://127.0.0.1:8086"
+batch_size: 50
+flush_seconds: 3
+
+routes:
+  - match: "nginx"
+    api_key: "nginx-log-store-api-key"
+  - match: "app"
+    api_key: "app-log-store-api-key"

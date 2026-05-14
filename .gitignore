@@ -1,0 +1,29 @@
+# 二进制
+/bin/
+admin
+apiserver
+logtransfer
+logcollect_agent
+syslog_server
+
+# 依赖
+web/node_modules/
+web/dist/
+vendor/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# 环境
+.env
+*.log
+
+# OS
+.DS_Store
+Thumbs.db
+
+# 数据
+/data/

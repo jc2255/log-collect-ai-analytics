@@ -1,0 +1,206 @@
+services:
+  # ==================== 基础设施 ====================
+
+  mysql:
+    image: mysql:8.0
+    container_name: lca-mysql
+    restart: always
+    ports:
+      - "3306:3306"
+    environment:
+      TZ: Asia/Shanghai
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-lca2024}
+      MYSQL_DATABASE: ${MYSQL_DATABASE:-lca}
+      MYSQL_CHARSET: utf8mb4
+    volumes:
+      - mysql_data:/var/lib/mysql
+      - ./deploy/mysql/init.sql:/docker-entrypoint-initdb.d/init.sql
+    command: --character-set-server=utf8mb4 --collation-server=utf8mb4_unicode_ci --default-authentication-plugin=mysql_native_password
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-p${MYSQL_ROOT_PASSWORD:-lca2024}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - lca-net
+
+  redis:
+    image: redis:7-alpine
+    container_name: lca-redis
+    restart: always
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    command: redis-server --appendonly yes --requirepass ${REDIS_PASSWORD:-lca2024}
+    healthcheck:
+      test: ["CMD", "redis-cli", "-a", "${REDIS_PASSWORD:-lca2024}", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - lca-net
+
+  zookeeper:
+    image: wurstmeister/zookeeper
+    container_name: lca-zookeeper
+    restart: always
+    ports:
+      - "2181:2181"
+    environment:
+      TZ: Asia/Shanghai
+    networks:
+      - lca-net
+
+  kafka:
+    image: wurstmeister/kafka
+    container_name: lca-kafka
+    restart: always
+    ports:
+      - "9092:9092"
+    environment:
+      TZ: Asia/Shanghai
+      KAFKA_BROKER_ID: 1
+      KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
+      KAFKA_LISTENERS: PLAINTEXT://:9092
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://${KAFKA_ADVERTISED_HOST:-127.0.0.1}:9092
+      KAFKA_LOG_RETENTION_HOURS: 72
+      KAFKA_LOG_SEGMENT_BYTES: 536870912
+      KAFKA_COMPRESSION_TYPE: lz4
+      KAFKA_AUTO_CREATE_TOPICS_ENABLE: "true"
+    volumes:
+      - kafka_data:/kafka
+    depends_on:
+      - zookeeper
+    healthcheck:
+      test: ["CMD-SHELL", "kafka-broker-api-versions.sh --bootstrap-server localhost:9092 || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+    networks:
+      - lca-net
+
+  elasticsearch:
+    image: docker.elastic.co/elasticsearch/elasticsearch:7.10.0
+    container_name: lca-elasticsearch
+    restart: always
+    ports:
+      - "9200:9200"
+      - "9300:9300"
+    environment:
+      - TZ=Asia/Shanghai
+      - node.name=es01
+      - cluster.name=lca-es-cluster
+      - discovery.type=single-node
+      - bootstrap.memory_lock=true
+      - "ES_JAVA_OPTS=${ES_JAVA_OPTS:--Xms512m -Xmx512m}"
+      - "path.repo=/data/backups"
+      - xpack.security.enabled=false
+    ulimits:
+      memlock:
+        soft: -1
+        hard: -1
+      nofile:
+        soft: 65536
+        hard: 65536
+    volumes:
+      - es_data:/usr/share/elasticsearch/data
+      - es_backups:/data/backups
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:9200/_cluster/health || exit 1"]
+      interval: 15s
+      timeout: 10s
+      retries: 5
+    networks:
+      - lca-net
+
+  # ==================== 应用服务 ====================
+
+  admin:
+    build:
+      context: .
+      dockerfile: deploy/Dockerfile
+      args:
+        APP_NAME: admin
+    container_name: lca-admin
+    restart: always
+    ports:
+      - "${ADMIN_PORT:-8080}:8080"
+    volumes:
+      - ./configs/admin-docker.yaml:/app/config.yaml
+      - ./configs/rbac_model.conf:/app/rbac_model.conf
+    depends_on:
+      mysql:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      elasticsearch:
+        condition: service_healthy
+    networks:
+      - lca-net
+
+  apiserver:
+    build:
+      context: .
+      dockerfile: deploy/Dockerfile
+      args:
+        APP_NAME: apiserver
+    container_name: lca-apiserver
+    restart: always
+    ports:
+      - "${API_PORT:-8086}:8086"
+    volumes:
+      - ./configs/apiserver-docker.yaml:/app/config.yaml
+    depends_on:
+      mysql:
+        condition: service_healthy
+      kafka:
+        condition: service_healthy
+    networks:
+      - lca-net
+
+  logtransfer:
+    build:
+      context: .
+      dockerfile: deploy/Dockerfile
+      args:
+        APP_NAME: logtransfer
+    container_name: lca-logtransfer
+    restart: always
+    volumes:
+      - ./configs/logtransfer-docker.yaml:/app/config.yaml
+    depends_on:
+      mysql:
+        condition: service_healthy
+      kafka:
+        condition: service_healthy
+      elasticsearch:
+        condition: service_healthy
+    networks:
+      - lca-net
+
+  # ==================== 前端 ====================
+
+  web:
+    build:
+      context: .
+      dockerfile: deploy/Dockerfile.web
+    container_name: lca-web
+    restart: always
+    ports:
+      - "80:80"
+    depends_on:
+      - admin
+    networks:
+      - lca-net
+
+volumes:
+  mysql_data:
+  redis_data:
+  kafka_data:
+  es_data:
+  es_backups:
+
+networks:
+  lca-net:
+    driver: bridge

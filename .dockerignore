@@ -1,0 +1,12 @@
+.git
+.gitignore
+.qoder
+docker-compose
+web/node_modules
+web/dist
+*.md
+*.jpg
+*.png
+.env.example
+scripts
+deploy/mysql

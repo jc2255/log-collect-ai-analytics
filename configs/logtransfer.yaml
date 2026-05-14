@@ -1,0 +1,45 @@
+server:
+  name: "lca-logtransfer"
+  port: 8088
+  mode: "release"
+
+mysql:
+  host: "127.0.0.1"
+  port: 3306
+  user: "root"
+  password: "lca2024"
+  dbname: "lca"
+  max_open_conns: 50
+  max_idle_conns: 10
+
+redis:
+  host: "127.0.0.1"
+  port: 6379
+  password: "lca2024"
+  db: 0
+
+kafka:
+  brokers:
+    - "127.0.0.1:9092"
+  group_id: "lca-logtransfer"
+  topic: "lca-log"
+
+elasticsearch:
+  addresses:
+    - "http://127.0.0.1:9200"
+  username: ""
+  password: ""
+  sniff: false
+
+jwt:
+  secret: "lca-secret-key-change-in-production"
+  expire_hour: 24
+  issuer: "lca-logtransfer"
+
+log:
+  level: "info"
+  filename: ""
+  max_size: 100
+  max_backups: 5
+  max_age: 30
+  compress: false
