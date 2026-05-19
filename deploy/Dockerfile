@@ -3,7 +3,7 @@
 
 ARG APP_NAME=admin
 
-FROM alpine:3.19
+FROM docker.m.daocloud.io/library/alpine:3.19
 
 # 重新声明 ARG（FROM 之后 ARG 作用域重置）
 ARG APP_NAME

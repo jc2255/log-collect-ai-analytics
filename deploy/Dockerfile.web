@@ -1,5 +1,5 @@
 # 使用预编译前端静态资源，不依赖 Node.js 源码
-FROM nginx:alpine
+FROM docker.m.daocloud.io/library/nginx:alpine
 
 # 复制预构建的前端静态资源
 COPY release/web-dist /usr/share/nginx/html
