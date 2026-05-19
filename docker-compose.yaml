@@ -82,7 +82,6 @@ services:
 
   elasticsearch:
     image: ccr.ccs.tencentyun.com/lcalog/es:7.10
-    platform: linux/arm64
     container_name: lca-elasticsearch
     restart: always
     ports:
