@@ -1,3 +1,8 @@
+# ===== 源码（商业软件，不开源）=====
+/cmd/
+/internal/
+/web/src/
+
 # 二进制
 /bin/
 admin
@@ -30,6 +35,8 @@ Thumbs.db
 
 # 官网
 /lca_web/
+/lca_web_staging/
+/lca_web_patch/
 
 # 密钥（私钥不入库）
 keys/private.pem
