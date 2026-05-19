@@ -4,9 +4,11 @@
 docker-compose
 web/node_modules
 web/dist
+web/src
 *.md
-*.jpg
-*.png
 .env.example
 scripts
 deploy/mysql
+logs
+cmd
+internal

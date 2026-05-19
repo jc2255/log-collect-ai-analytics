@@ -3,13 +3,17 @@
 /internal/
 /web/src/
 
-# 二进制
+# release/ 目录下的编译产物（主动追踪，勿忽略）
+# release/bin/   ← Linux/Windows 预编译二进制
+# release/web-dist/  ← 前端构建产物
+
+# 二进制（仅忽略根目录下的）
 /bin/
-admin
-apiserver
-logtransfer
-logcollect_agent
-syslog_server
+/admin
+/apiserver
+/logtransfer
+/logcollect_agent
+/syslog_server
 
 # 依赖
 web/node_modules/
