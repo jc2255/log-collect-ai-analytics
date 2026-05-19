@@ -23,6 +23,7 @@ vendor/
 # IDE
 .idea/
 .vscode/
+.qoder/
 *.swp
 *.swo
 
