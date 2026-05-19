@@ -355,17 +355,15 @@ flush_seconds: 5                           # 最大积攒秒数（超时强制�
 ### Linux / macOS
 
 ```bash
-# 方式一：下载预编译二进制
-wget https://lca.top/download/logcollect-linux-amd64 -O logcollect
+# 从 GitHub 下载预编译二进制
+wget https://github.com/jc2255/log-collect-ai-analytics/raw/main/release/bin/logcollect -O logcollect
 chmod +x logcollect
 
-# 方式二：从源码编译
-git clone https://github.com/jc2255/log-collect-ai-analytics.git
-cd log-collect-ai-analytics
-go build -o logcollect ./cmd/logcollect
+# 创建工作目录
+mkdir -p /opt/lca-agent && mv logcollect /opt/lca-agent/
 
 # 创建配置文件
-cat > logcollect.yaml <<'EOF'
+cat > /opt/lca-agent/logcollect.yaml <<'EOF'
 api_server: "http://192.168.1.100:8086"
 admin_server: "http://192.168.1.100:8080"
 api_key: "ak_app-nginx_a1b2c3d4"
@@ -375,25 +373,25 @@ flush_seconds: 5
 EOF
 
 # 启动（前台调试）
-./logcollect -config logcollect.yaml
+cd /opt/lca-agent && ./logcollect -config logcollect.yaml
 
 # 后台守护进程
-nohup ./logcollect -config logcollect.yaml > /var/log/logcollect.log 2>&1 &
+nohup /opt/lca-agent/logcollect -config /opt/lca-agent/logcollect.yaml > /var/log/lca-agent.log 2>&1 &
 ```
 
 ### Windows
 
 ```powershell
-# 下载 logcollect_win.exe 或自行编译
-go build -o logcollect_win.exe ./cmd/logcollect_win
+# 从 GitHub 下载预编译二进制
+Invoke-WebRequest -Uri "https://github.com/jc2255/log-collect-ai-analytics/raw/main/release/bin/logcollect.exe" -OutFile "C:\lca-agent\logcollect.exe"
 
-# 创建配置文件 logcollect.yaml（内容同上）
+# 创建配置文件 C:\lca-agent\logcollect.yaml（内容同上）
 
 # 启动
-.\logcollect_win.exe -config logcollect.yaml
+C:\lca-agent\logcollect.exe -config C:\lca-agent\logcollect.yaml
 
 # 注册为 Windows 服务（使用 NSSM）
-nssm install LCACollect "C:\lca\logcollect_win.exe" "-config C:\lca\logcollect.yaml"
+nssm install LCACollect "C:\lca-agent\logcollect.exe" "-config C:\lca-agent\logcollect.yaml"
 nssm start LCACollect
 ```
 
@@ -697,7 +695,7 @@ output {
 | Professional | 商业用途，单机部署 | 付费购买 |
 | Enterprise | 商业用途，多机部署 + 优先技术支持 | 联系商务 |
 
-> 购买地址：**https://lca.top** · 商务咨询：**support@lca.top**
+> 购买地址：**https://lca.top** · 商务咨询：**13925090458**
 
 ---
 
