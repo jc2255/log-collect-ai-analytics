@@ -2,7 +2,7 @@ services:
   # ==================== 基础设施 ====================
 
   mysql:
-    image: mysql:8.0
+    image: ccr.ccs.tencentyun.com/lcalog/mysql8:v1
     container_name: lca-mysql
     restart: always
     ports:
@@ -25,7 +25,7 @@ services:
       - lca-net
 
   redis:
-    image: redis:7-alpine
+    image: ccr.ccs.tencentyun.com/lcalog/redis:v1
     container_name: lca-redis
     restart: always
     ports:
@@ -42,7 +42,7 @@ services:
       - lca-net
 
   zookeeper:
-    image: wurstmeister/zookeeper
+    image: ccr.ccs.tencentyun.com/lcalog/zookeeper:v1
     container_name: lca-zookeeper
     restart: always
     ports:
@@ -53,7 +53,7 @@ services:
       - lca-net
 
   kafka:
-    image: wurstmeister/kafka
+    image: ccr.ccs.tencentyun.com/lcalog/kafka:v1
     container_name: lca-kafka
     restart: always
     ports:
@@ -81,7 +81,8 @@ services:
       - lca-net
 
   elasticsearch:
-    image: docker.elastic.co/elasticsearch/elasticsearch:7.10.0
+    image: docker.elastic.co/elasticsearch/elasticsearch-oss:7.10.2
+    platform: linux/arm64
     container_name: lca-elasticsearch
     restart: always
     ports:
@@ -95,7 +96,7 @@ services:
       - bootstrap.memory_lock=true
       - "ES_JAVA_OPTS=${ES_JAVA_OPTS:--Xms512m -Xmx512m}"
       - "path.repo=/data/backups"
-      - xpack.security.enabled=false
+      - bootstrap.system_call_filter=false
     ulimits:
       memlock:
         soft: -1

@@ -4,14 +4,11 @@ import { authApi } from '../api'
 
 export interface UserInfo {
   id: number
-  tenant_id: number
-  tenant_name: string
   username: string
   nickname: string
-  email: string
-  phone: string
-  avatar: string
-  is_super_admin: boolean
+  dept_id: number
+  post_id: number
+  status: number
   roles: { id: number; name: string; code: string }[]
 }
 
@@ -39,9 +36,9 @@ export const useUserStore = defineStore('user', () => {
     localStorage.removeItem('lca_token')
   }
 
-  function isSuperAdmin() {
-    return userInfo.value?.is_super_admin || false
+  function isAdmin() {
+    return userInfo.value?.username === 'admin'
   }
 
-  return { token, userInfo, login, fetchUserInfo, logout, isSuperAdmin }
+  return { token, userInfo, login, fetchUserInfo, logout, isAdmin }
 })

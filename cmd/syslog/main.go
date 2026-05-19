@@ -18,16 +18,16 @@ import (
 
 // SyslogConfig syslog配置
 type SyslogConfig struct {
-	UDPPort    int            `mapstructure:"udp_port"`
-	TCPPort    int            `mapstructure:"tcp_port"`
-	APIServer  string         `mapstructure:"api_server"`
-	Routes     []RouteConfig  `mapstructure:"routes"`
-	BatchSize  int            `mapstructure:"batch_size"`
-	FlushSec   int            `mapstructure:"flush_seconds"`
+	UDPPort   int           `mapstructure:"udp_port"`
+	TCPPort   int           `mapstructure:"tcp_port"`
+	APIServer string        `mapstructure:"api_server"`
+	Routes    []RouteConfig `mapstructure:"routes"`
+	BatchSize int           `mapstructure:"batch_size"`
+	FlushSec  int           `mapstructure:"flush_seconds"`
 }
 
 type RouteConfig struct {
-	Match  string `mapstructure:"match"`  // 匹配规则，如 hostname 或 facility
+	Match  string `mapstructure:"match"` // 匹配规则，如 hostname 或 facility
 	APIKey string `mapstructure:"api_key"`
 }
 
@@ -137,10 +137,10 @@ func handleTCPConn(conn net.Conn) {
 func processSyslog(raw, sourceAddr string) {
 	// 简单解析syslog格式
 	entry := map[string]interface{}{
-		"message":    raw,
-		"source_ip":  strings.Split(sourceAddr, ":")[0],
-		"timestamp":  time.Now().UnixMilli(),
-		"protocol":   "syslog",
+		"message":   raw,
+		"source_ip": strings.Split(sourceAddr, ":")[0],
+		"timestamp": time.Now().UnixMilli(),
+		"protocol":  "syslog",
 	}
 
 	// 路由匹配确定api_key

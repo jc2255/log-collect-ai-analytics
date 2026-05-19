@@ -19,27 +19,32 @@ import (
 
 // Config 采集器配置
 type Config struct {
-	APIServer   string        `mapstructure:"api_server"`
-	APIKey      string        `mapstructure:"api_key"`
-	BatchSize   int           `mapstructure:"batch_size"`
-	FlushSec    int           `mapstructure:"flush_seconds"`
-	Collectors  []CollectConf `mapstructure:"collectors"`
-	HeartbeatURL string       `mapstructure:"heartbeat_url"`
-	AgentID     string        `mapstructure:"agent_id"`
+	APIServer   string `mapstructure:"api_server"`
+	APIKey      string `mapstructure:"api_key"`
+	AgentID     string `mapstructure:"agent_id"`
+	BatchSize   int    `mapstructure:"batch_size"`
+	FlushSec    int    `mapstructure:"flush_seconds"`
+	AdminServer string `mapstructure:"admin_server"` // 管理后台地址，拉取任务和上报偏移量
 }
 
-type CollectConf struct {
-	Paths            []string `mapstructure:"paths"`
-	MultilinePattern string   `mapstructure:"multiline_pattern"`
-	ParseMode        string   `mapstructure:"parse_mode"`
+// CollectTask 从管理后台拉取的采集任务
+type CollectTask struct {
+	ID               uint   `json:"id"`
+	AgentID          uint   `json:"agent_id"`
+	StoreID          uint   `json:"store_id"`
+	StoreName        string `json:"store_name"`
+	LogPathPattern   string `json:"log_path_pattern"`
+	MultilinePattern string `json:"multiline_pattern"`
+	ParseMode        string `json:"parse_mode"`
+	ParseConfig      string `json:"parse_config"`
 }
 
-// LogEntry 日志条目
-type LogEntry struct {
-	Message   string `json:"message"`
-	File      string `json:"file"`
-	Hostname  string `json:"hostname"`
-	Timestamp int64  `json:"timestamp"`
+// FileOffset 文件偏移量
+type FileOffset struct {
+	TaskID    uint   `json:"task_id"`
+	FilePath  string `json:"file_path"`
+	FileInode uint64 `json:"file_inode"`
+	Offset    int64  `json:"offset"`
 }
 
 var (
@@ -47,13 +52,14 @@ var (
 	hostname string
 	buffer   []map[string]interface{}
 	bufMu    sync.Mutex
+	offsets  = map[string]*FileOffset{} // file_path -> offset
+	offMu    sync.Mutex
 )
 
 func main() {
 	configFile := flag.String("config", "configs/logcollect.yaml", "config file path")
 	flag.Parse()
 
-	// 加载配置
 	viper.SetConfigFile(*configFile)
 	if err := viper.ReadInConfig(); err != nil {
 		fmt.Printf("read config failed: %v\n", err)
@@ -63,39 +69,55 @@ func main() {
 		fmt.Printf("unmarshal config failed: %v\n", err)
 		os.Exit(1)
 	}
-
 	if cfg.BatchSize == 0 {
 		cfg.BatchSize = 50
 	}
 	if cfg.FlushSec == 0 {
 		cfg.FlushSec = 5
 	}
+	if cfg.AgentID == "" {
+		cfg.AgentID = "agent-001"
+	}
 
 	hostname, _ = os.Hostname()
-	fmt.Printf("LogCollect agent started, hostname: %s\n", hostname)
+	fmt.Printf("LogCollect agent started, hostname: %s, agent_id: %s\n", hostname, cfg.AgentID)
 
-	// 启动文件监控
-	ctx := make(chan struct{})
+	// 1. 从管理后台拉取采集任务
+	tasks := fetchTasks()
+	if len(tasks) == 0 {
+		fmt.Println("No collect tasks found, waiting...")
+	} else {
+		fmt.Printf("Loaded %d collect tasks\n", len(tasks))
+	}
+
+	// 2. 从管理后台拉取偏移量
+	fetchOffsets(tasks)
+
+	// 3. 启动文件监控
+	done := make(chan struct{})
 	var wg sync.WaitGroup
-
-	for _, collector := range cfg.Collectors {
-		for _, pattern := range collector.Paths {
-			files, _ := filepath.Glob(pattern)
-			for _, file := range files {
-				wg.Add(1)
-				go func(f string) {
-					defer wg.Done()
-					tailFile(f, ctx)
-				}(file)
-			}
+	for _, task := range tasks {
+		files, _ := filepath.Glob(task.LogPathPattern)
+		for _, file := range files {
+			wg.Add(1)
+			go func(f string, t CollectTask) {
+				defer wg.Done()
+				tailFile(f, t, done)
+			}(file, task)
 		}
 	}
 
-	// 启动定时flush
-	go flushLoop(ctx)
+	// 4. 定时flush
+	go flushLoop(done)
 
-	// 启动心跳上报
-	go heartbeatLoop(ctx)
+	// 5. 定时上报偏移量（每10秒）
+	go offsetReportLoop(done)
+
+	// 6. 心跳上报
+	go heartbeatLoop(done)
+
+	// 7. 定期重新拉取任务（每60秒检查新任务）
+	go taskRefreshLoop(tasks, done, &wg)
 
 	// 优雅退出
 	quit := make(chan os.Signal, 1)
@@ -103,15 +125,63 @@ func main() {
 	<-quit
 
 	fmt.Println("Shutting down logcollect...")
-	close(ctx)
+	close(done)
 	wg.Wait()
-
-	// flush剩余数据
 	flushBuffer()
+	reportOffsets() // 最后上报一次偏移量
 }
 
-// tailFile 追踪文件变化
-func tailFile(filePath string, done chan struct{}) {
+// fetchTasks 从管理后台拉取采集任务
+func fetchTasks() []CollectTask {
+	url := cfg.AdminServer + "/api/v1/agents/tasks?hostname=" + hostname
+	resp, err := http.Get(url)
+	if err != nil {
+		fmt.Printf("fetch tasks failed: %v\n", err)
+		return nil
+	}
+	defer resp.Body.Close()
+
+	var result struct {
+		Data struct {
+			List []CollectTask `json:"list"`
+		} `json:"data"`
+	}
+	json.NewDecoder(resp.Body).Decode(&result)
+	return result.Data.List
+}
+
+// fetchOffsets 拉取偏移量
+func fetchOffsets(tasks []CollectTask) {
+	url := fmt.Sprintf("%s/api/v1/agents/offsets?agent_id=%s", cfg.AdminServer, cfg.AgentID)
+	resp, err := http.Get(url)
+	if err != nil {
+		return
+	}
+	defer resp.Body.Close()
+
+	var result struct {
+		Data struct {
+			List []FileOffset `json:"list"`
+		} `json:"data"`
+	}
+	json.NewDecoder(resp.Body).Decode(&result)
+
+	offMu.Lock()
+	for _, o := range result.Data.List {
+		offsets[o.FilePath] = &FileOffset{
+			TaskID:    o.TaskID,
+			FilePath:  o.FilePath,
+			FileInode: o.FileInode,
+			Offset:    o.Offset,
+		}
+	}
+	offMu.Unlock()
+
+	fmt.Printf("Loaded %d file offsets\n", len(result.Data.List))
+}
+
+// tailFile 追踪文件变化（支持断点续传）
+func tailFile(filePath string, task CollectTask, done chan struct{}) {
 	file, err := os.Open(filePath)
 	if err != nil {
 		fmt.Printf("open file failed: %s, err: %v\n", filePath, err)
@@ -119,10 +189,31 @@ func tailFile(filePath string, done chan struct{}) {
 	}
 	defer file.Close()
 
-	// 定位到文件末尾
-	file.Seek(0, io.SeekEnd)
+	// 获取文件inode
+	fi, _ := file.Stat()
+	var inode uint64
+	if si, ok := fi.Sys().(*syscall.Stat_t); ok {
+		inode = si.Ino
+	}
+
+	// 检查是否有记录的偏移量
+	offMu.Lock()
+	savedOff, exists := offsets[filePath]
+	offMu.Unlock()
+
+	if exists && savedOff.FileInode == inode && savedOff.Offset > 0 {
+		// 断点续传：从上次偏移量继续
+		file.Seek(savedOff.Offset, io.SeekStart)
+		fmt.Printf("Resuming %s from offset %d\n", filePath, savedOff.Offset)
+	} else {
+		// 新文件：从末尾开始
+		file.Seek(0, io.SeekEnd)
+		fmt.Printf("Tailing new file: %s\n", filePath)
+	}
 
 	buf := make([]byte, 4096)
+	var lineBuf []byte
+
 	for {
 		select {
 		case <-done:
@@ -130,17 +221,32 @@ func tailFile(filePath string, done chan struct{}) {
 		default:
 			n, err := file.Read(buf)
 			if err != nil && err != io.EOF {
-				fmt.Printf("read file error: %v\n", err)
 				return
 			}
 			if n > 0 {
-				lines := splitLines(buf[:n])
-				for _, line := range lines {
-					if line == "" {
-						continue
+				lineBuf = append(lineBuf, buf[:n]...)
+				// 按行分割
+				for {
+					idx := bytes.IndexByte(lineBuf, '\n')
+					if idx < 0 {
+						break
 					}
-					addToBuffer(filePath, line)
+					line := string(lineBuf[:idx])
+					lineBuf = lineBuf[idx+1:]
+					if line != "" {
+						addToBuffer(filePath, task.StoreName, line)
+					}
 				}
+				// 更新偏移量
+				currentOff, _ := file.Seek(0, io.SeekCurrent)
+				offMu.Lock()
+				offsets[filePath] = &FileOffset{
+					TaskID:    task.ID,
+					FilePath:  filePath,
+					FileInode: inode,
+					Offset:    currentOff,
+				}
+				offMu.Unlock()
 			} else {
 				time.Sleep(500 * time.Millisecond)
 			}
@@ -148,25 +254,16 @@ func tailFile(filePath string, done chan struct{}) {
 	}
 }
 
-func splitLines(data []byte) []string {
-	var lines []string
-	for _, line := range bytes.Split(data, []byte("\n")) {
-		if len(line) > 0 {
-			lines = append(lines, string(line))
-		}
-	}
-	return lines
-}
-
-func addToBuffer(filePath, message string) {
+func addToBuffer(filePath, storeName, message string) {
 	bufMu.Lock()
 	defer bufMu.Unlock()
 
 	entry := map[string]interface{}{
-		"message":   message,
-		"file":      filePath,
-		"hostname":  hostname,
-		"timestamp": time.Now().UnixMilli(),
+		"message":    message,
+		"file":       filePath,
+		"hostname":   hostname,
+		"timestamp":  time.Now().UnixMilli(),
+		"store_name": storeName,
 	}
 	buffer = append(buffer, entry)
 
@@ -206,30 +303,66 @@ func pushLogs(logs []map[string]interface{}) {
 		"api_key": cfg.APIKey,
 		"logs":    logs,
 	}
-
 	data, err := json.Marshal(payload)
 	if err != nil {
-		fmt.Printf("marshal logs failed: %v\n", err)
 		return
 	}
-
 	url := cfg.APIServer + "/api/v1/log/push"
 	resp, err := http.Post(url, "application/json", bytes.NewReader(data))
 	if err != nil {
 		fmt.Printf("push logs failed: %v\n", err)
-		// TODO: 写入本地缓冲文件，待恢复后重试
 		return
 	}
-	defer resp.Body.Close()
+	resp.Body.Close()
+}
 
-	if resp.StatusCode != http.StatusOK {
-		body, _ := io.ReadAll(resp.Body)
-		fmt.Printf("push logs response error: %s\n", string(body))
+// offsetReportLoop 定时上报偏移量
+func offsetReportLoop(done chan struct{}) {
+	ticker := time.NewTicker(10 * time.Second)
+	defer ticker.Stop()
+	for {
+		select {
+		case <-done:
+			return
+		case <-ticker.C:
+			reportOffsets()
+		}
 	}
 }
 
+func reportOffsets() {
+	offMu.Lock()
+	var offsetList []FileOffset
+	for _, o := range offsets {
+		offsetList = append(offsetList, FileOffset{
+			TaskID:    o.TaskID,
+			FilePath:  o.FilePath,
+			FileInode: o.FileInode,
+			Offset:    o.Offset,
+		})
+	}
+	offMu.Unlock()
+
+	if len(offsetList) == 0 {
+		return
+	}
+
+	payload := map[string]interface{}{
+		"agent_id": cfg.AgentID,
+		"offsets":  offsetList,
+	}
+	data, _ := json.Marshal(payload)
+	url := cfg.AdminServer + "/api/v1/agents/offsets"
+	resp, err := http.Post(url, "application/json", bytes.NewReader(data))
+	if err != nil {
+		fmt.Printf("report offsets failed: %v\n", err)
+		return
+	}
+	resp.Body.Close()
+}
+
 func heartbeatLoop(done chan struct{}) {
-	if cfg.HeartbeatURL == "" {
+	if cfg.AdminServer == "" {
 		return
 	}
 	ticker := time.NewTicker(30 * time.Second)
@@ -252,5 +385,40 @@ func sendHeartbeat() {
 		"time":     time.Now().Unix(),
 	}
 	data, _ := json.Marshal(payload)
-	http.Post(cfg.HeartbeatURL, "application/json", bytes.NewReader(data))
+	url := cfg.AdminServer + "/api/v1/agents/heartbeat"
+	http.Post(url, "application/json", bytes.NewReader(data))
+}
+
+// taskRefreshLoop 定期检查新任务
+func taskRefreshLoop(currentTasks []CollectTask, done chan struct{}, wg *sync.WaitGroup) {
+	ticker := time.NewTicker(60 * time.Second)
+	defer ticker.Stop()
+	for {
+		select {
+		case <-done:
+			return
+		case <-ticker.C:
+			newTasks := fetchTasks()
+			// 找出新增的任务
+			existingPaths := map[string]bool{}
+			for _, t := range currentTasks {
+				existingPaths[fmt.Sprintf("%d:%s", t.ID, t.LogPathPattern)] = true
+			}
+			for _, t := range newTasks {
+				key := fmt.Sprintf("%d:%s", t.ID, t.LogPathPattern)
+				if !existingPaths[key] {
+					fmt.Printf("New task detected: %s -> %s\n", t.StoreName, t.LogPathPattern)
+					files, _ := filepath.Glob(t.LogPathPattern)
+					for _, file := range files {
+						wg.Add(1)
+						go func(f string, task CollectTask) {
+							defer wg.Done()
+							tailFile(f, task, done)
+						}(file, t)
+					}
+					currentTasks = append(currentTasks, t)
+				}
+			}
+		}
+	}
 }

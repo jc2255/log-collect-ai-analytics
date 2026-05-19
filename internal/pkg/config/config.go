@@ -14,13 +14,15 @@ var (
 
 // AppConfig 应用全局配置
 type AppConfig struct {
-	Server ServerConfig `mapstructure:"server"`
-	MySQL  MySQLConfig  `mapstructure:"mysql"`
-	Redis  RedisConfig  `mapstructure:"redis"`
-	Kafka  KafkaConfig  `mapstructure:"kafka"`
-	ES     ESConfig     `mapstructure:"elasticsearch"`
-	JWT    JWTConfig    `mapstructure:"jwt"`
-	Log    LogConfig    `mapstructure:"log"`
+	Server    ServerConfig  `mapstructure:"server"`
+	MySQL     MySQLConfig   `mapstructure:"mysql"`
+	Redis     RedisConfig   `mapstructure:"redis"`
+	Kafka     KafkaConfig   `mapstructure:"kafka"`
+	ES        ESConfig      `mapstructure:"elasticsearch"`
+	JWT       JWTConfig     `mapstructure:"jwt"`
+	Log       LogConfig     `mapstructure:"log"`
+	License   LicenseConfig `mapstructure:"license"`
+	LCATopURL string        `mapstructure:"lca_top_url"`
 }
 
 type ServerConfig struct {
@@ -81,6 +83,10 @@ type LogConfig struct {
 	MaxBackups int    `mapstructure:"max_backups"`
 	MaxAge     int    `mapstructure:"max_age"` // days
 	Compress   bool   `mapstructure:"compress"`
+}
+
+type LicenseConfig struct {
+	PublicKey string `mapstructure:"public_key"`
 }
 
 // Init 初始化配置

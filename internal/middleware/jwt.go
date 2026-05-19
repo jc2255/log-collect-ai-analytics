@@ -13,10 +13,8 @@ import (
 
 // Claims JWT Claims
 type Claims struct {
-	UserID       uint   `json:"user_id"`
-	TenantID     uint   `json:"tenant_id"`
-	Username     string `json:"username"`
-	IsSuperAdmin bool   `json:"is_super_admin"`
+	UserID   uint   `json:"user_id"`
+	Username string `json:"username"`
 	jwt.RegisteredClaims
 }
 
@@ -32,12 +30,10 @@ func InitJWT(secret string, expireHour int, issuer string) {
 }
 
 // GenerateToken 生成JWT Token
-func GenerateToken(userID, tenantID uint, username string, isSuperAdmin bool) (string, error) {
+func GenerateToken(userID uint, username string) (string, error) {
 	claims := Claims{
-		UserID:       userID,
-		TenantID:     tenantID,
-		Username:     username,
-		IsSuperAdmin: isSuperAdmin,
+		UserID:   userID,
+		Username: username,
 		RegisteredClaims: jwt.RegisteredClaims{
 			ExpiresAt: jwt.NewNumericDate(time.Now().Add(time.Duration(jwtExpireHour) * time.Hour)),
 			IssuedAt:  jwt.NewNumericDate(time.Now()),
@@ -87,9 +83,7 @@ func JWTAuth() gin.HandlerFunc {
 
 		// 将用户信息注入context
 		c.Set("user_id", claims.UserID)
-		c.Set("tenant_id", claims.TenantID)
 		c.Set("username", claims.Username)
-		c.Set("is_super_admin", claims.IsSuperAdmin)
 		c.Next()
 	}
 }
@@ -103,15 +97,6 @@ func GetCurrentUserID(c *gin.Context) uint {
 	return 0
 }
 
-// GetCurrentTenantID 从context获取当前租户ID
-func GetCurrentTenantID(c *gin.Context) uint {
-	tenantID, _ := c.Get("tenant_id")
-	if id, ok := tenantID.(uint); ok {
-		return id
-	}
-	return 0
-}
-
 // GetCurrentUsername 从context获取当前用户名
 func GetCurrentUsername(c *gin.Context) string {
 	username, _ := c.Get("username")
@@ -119,13 +104,4 @@ func GetCurrentUsername(c *gin.Context) string {
 		return name
 	}
 	return ""
-}
-
-// IsSuperAdmin 判断当前用户是否为超级管理员
-func IsSuperAdmin(c *gin.Context) bool {
-	isAdmin, _ := c.Get("is_super_admin")
-	if admin, ok := isAdmin.(bool); ok {
-		return admin
-	}
-	return false
 }

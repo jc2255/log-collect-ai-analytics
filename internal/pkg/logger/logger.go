@@ -2,16 +2,40 @@ package logger
 
 import (
 	"os"
+	"path/filepath"
 
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
+	"gopkg.in/natefinch/lumberjack.v2"
 )
 
 var globalLogger *zap.SugaredLogger
 
+// LogConfig 日志配置
+type LogConfig struct {
+	Level      string
+	Filename   string
+	MaxSize    int // MB
+	MaxBackups int
+	MaxAge     int // days
+	Compress   bool
+}
+
 // Init 初始化日志
 func Init(level string, filename string) error {
-	zapLevel := parseLevel(level)
+	return InitWithConfig(LogConfig{
+		Level:      level,
+		Filename:   filename,
+		MaxSize:    100,
+		MaxBackups: 5,
+		MaxAge:     30,
+		Compress:   false,
+	})
+}
+
+// InitWithConfig 使用完整配置初始化日志
+func InitWithConfig(cfg LogConfig) error {
+	zapLevel := parseLevel(cfg.Level)
 
 	encoderConfig := zapcore.EncoderConfig{
 		TimeKey:        "time",
@@ -33,14 +57,35 @@ func Init(level string, filename string) error {
 	consoleEncoder := zapcore.NewConsoleEncoder(encoderConfig)
 	cores = append(cores, zapcore.NewCore(consoleEncoder, zapcore.AddSync(os.Stdout), zapLevel))
 
-	// 文件输出
-	if filename != "" {
-		file, err := os.OpenFile(filename, os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0644)
-		if err != nil {
-			return err
+	// 文件输出（使用lumberjack支持日志轮转）
+	if cfg.Filename != "" {
+		// 自动创建日志目录
+		if dir := filepath.Dir(cfg.Filename); dir != "" && dir != "." {
+			os.MkdirAll(dir, 0755)
+		}
+
+		maxSize := cfg.MaxSize
+		if maxSize <= 0 {
+			maxSize = 100
+		}
+		maxBackups := cfg.MaxBackups
+		if maxBackups <= 0 {
+			maxBackups = 5
+		}
+		maxAge := cfg.MaxAge
+		if maxAge <= 0 {
+			maxAge = 30
+		}
+
+		writer := &lumberjack.Logger{
+			Filename:   cfg.Filename,
+			MaxSize:    maxSize,
+			MaxBackups: maxBackups,
+			MaxAge:     maxAge,
+			Compress:   cfg.Compress,
 		}
 		jsonEncoder := zapcore.NewJSONEncoder(encoderConfig)
-		cores = append(cores, zapcore.NewCore(jsonEncoder, zapcore.AddSync(file), zapLevel))
+		cores = append(cores, zapcore.NewCore(jsonEncoder, zapcore.AddSync(writer), zapLevel))
 	}
 
 	core := zapcore.NewTee(cores...)

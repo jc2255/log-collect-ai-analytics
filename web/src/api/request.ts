@@ -41,6 +41,10 @@ request.interceptors.response.use(
       userStore.logout()
       router.push('/login')
     }
+    // 授权码未绑定错误
+    if (error.response?.data?.code === 40301) {
+      return Promise.reject(error)
+    }
     ElMessage.error(error.message || '网络错误')
     return Promise.reject(error)
   }

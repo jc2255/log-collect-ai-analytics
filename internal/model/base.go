@@ -14,33 +14,23 @@ type BaseModel struct {
 	DeletedAt gorm.DeletedAt `gorm:"index" json:"-"`
 }
 
-// Tenant 租户
-type Tenant struct {
-	BaseModel
-	Name        string `gorm:"size:100;not null;uniqueIndex" json:"name"`
-	Code        string `gorm:"size:50;not null;uniqueIndex" json:"code"`
-	Status      int8   `gorm:"default:1;comment:1-启用 0-禁用" json:"status"`
-	QuotaConfig string `gorm:"type:text;comment:配额配置JSON" json:"quota_config"`
-	Description string `gorm:"size:500" json:"description"`
-}
-
-func (Tenant) TableName() string { return "tenants" }
-
 // User 用户
 type User struct {
 	BaseModel
-	TenantID     uint   `gorm:"not null;index" json:"tenant_id"`
-	Username     string `gorm:"size:50;not null" json:"username"`
+	Username     string `gorm:"size:50;not null;uniqueIndex" json:"username"`
 	PasswordHash string `gorm:"size:255;not null" json:"-"`
 	Nickname     string `gorm:"size:100" json:"nickname"`
 	Email        string `gorm:"size:100" json:"email"`
 	Phone        string `gorm:"size:20" json:"phone"`
 	Avatar       string `gorm:"size:500" json:"avatar"`
 	Status       int8   `gorm:"default:1;comment:1-启用 0-禁用" json:"status"`
-	IsSuperAdmin bool   `gorm:"default:false" json:"is_super_admin"`
+	DeptID       uint   `gorm:"default:0" json:"dept_id"`
+	PostID       uint   `gorm:"default:0" json:"post_id"`
+	Remark       string `gorm:"size:500" json:"remark"`
 
-	Tenant Tenant `gorm:"foreignKey:TenantID" json:"tenant,omitempty"`
-	Roles  []Role `gorm:"many2many:user_roles" json:"roles,omitempty"`
+	Dept  *Department `gorm:"-" json:"dept,omitempty"`
+	Post  *Post       `gorm:"-" json:"post,omitempty"`
+	Roles []Role      `gorm:"many2many:user_roles" json:"roles,omitempty"`
 }
 
 func (User) TableName() string { return "users" }
@@ -48,32 +38,44 @@ func (User) TableName() string { return "users" }
 // Role 角色
 type Role struct {
 	BaseModel
-	TenantID    uint   `gorm:"not null;index" json:"tenant_id"`
 	Name        string `gorm:"size:50;not null" json:"name"`
-	Code        string `gorm:"size:50;not null" json:"code"`
-	Description string `gorm:"size:500" json:"description"`
+	Code        string `gorm:"size:50;not null;uniqueIndex" json:"code"`
+	Sort        int    `gorm:"default:0" json:"sort"`
 	Status      int8   `gorm:"default:1" json:"status"`
+	Description string `gorm:"size:500" json:"description"`
 
-	Permissions []Permission `gorm:"many2many:role_permissions" json:"permissions,omitempty"`
+	Menus []Menu `gorm:"many2many:role_menus" json:"menus,omitempty"`
 }
 
 func (Role) TableName() string { return "roles" }
 
-// Permission 权限
-type Permission struct {
+// Department 部门
+type Department struct {
 	BaseModel
-	Name     string `gorm:"size:100;not null" json:"name"`
-	Code     string `gorm:"size:100;not null;uniqueIndex" json:"code"`
-	Type     string `gorm:"size:20;not null;comment:menu/button/api" json:"type"`
 	ParentID uint   `gorm:"default:0" json:"parent_id"`
-	Path     string `gorm:"size:200;comment:API路径或前端路由" json:"path"`
-	Method   string `gorm:"size:10;comment:HTTP方法" json:"method"`
+	Name     string `gorm:"size:100;not null" json:"name"`
 	Sort     int    `gorm:"default:0" json:"sort"`
-	Icon     string `gorm:"size:100" json:"icon"`
+	Leader   string `gorm:"size:50" json:"leader"`
+	Phone    string `gorm:"size:20" json:"phone"`
+	Email    string `gorm:"size:100" json:"email"`
 	Status   int8   `gorm:"default:1" json:"status"`
+
+	Children []Department `gorm:"-" json:"children,omitempty"`
 }
 
-func (Permission) TableName() string { return "permissions" }
+func (Department) TableName() string { return "departments" }
+
+// Post 岗位
+type Post struct {
+	BaseModel
+	Name   string `gorm:"size:100;not null" json:"name"`
+	Code   string `gorm:"size:50;not null;uniqueIndex" json:"code"`
+	Sort   int    `gorm:"default:0" json:"sort"`
+	Status int8   `gorm:"default:1" json:"status"`
+	Remark string `gorm:"size:500" json:"remark"`
+}
+
+func (Post) TableName() string { return "posts" }
 
 // Menu 菜单
 type Menu struct {
@@ -84,9 +86,13 @@ type Menu struct {
 	Component string `gorm:"size:200" json:"component"`
 	Icon      string `gorm:"size:100" json:"icon"`
 	Sort      int    `gorm:"default:0" json:"sort"`
-	Hidden    bool   `gorm:"default:false" json:"hidden"`
+	MenuType  string `gorm:"size:10;default:M;comment:M-目录 C-菜单 F-按钮" json:"menu_type"`
+	Visible   int8   `gorm:"default:1;comment:1-显示 0-隐藏" json:"visible"`
 	Status    int8   `gorm:"default:1" json:"status"`
-	PermCode  string `gorm:"size:100;comment:关联权限code" json:"perm_code"`
+	Perms     string `gorm:"size:200;comment:权限标识" json:"perms"`
+	ApiPath   string `gorm:"size:200;comment:API接口路径" json:"api_path"`
+
+	Children []Menu `gorm:"-" json:"children,omitempty"`
 }
 
 func (Menu) TableName() string { return "menus" }

@@ -27,3 +27,13 @@ Thumbs.db
 
 # 数据
 /data/
+
+# 官网
+/lca_web/
+
+# 密钥（私钥不入库）
+keys/private.pem
+keys/*.p12
+
+# 测试日志
+/tmp/lca-test-logs/

@@ -1,17 +1,6 @@
 api_server: "http://127.0.0.1:8086"
-api_key: "your-log-store-api-key"
+admin_server: "http://127.0.0.1:8080"
+api_key: "ak_nginx_001"
 agent_id: "agent-001"
-heartbeat_url: "http://127.0.0.1:8080/api/v1/agents/heartbeat"
 batch_size: 50
 flush_seconds: 5
-
-collectors:
-  - paths:
-      - "/var/log/*.log"
-      - "/var/log/syslog"
-    multiline_pattern: "^\\d{4}-\\d{2}-\\d{2}"
-    parse_mode: "json"
-  - paths:
-      - "/app/logs/**/*.log"
-    multiline_pattern: ""
-    parse_mode: "raw"

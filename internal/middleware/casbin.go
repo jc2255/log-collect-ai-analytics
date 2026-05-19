@@ -41,16 +41,16 @@ func GetEnforcer() *casbin.Enforcer {
 // CasbinRBAC RBAC权限中间件
 func CasbinRBAC() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		// 超级管理员跳过权限检查
-		if IsSuperAdmin(c) {
-			c.Next()
-			return
-		}
-
-		// 获取当前用户角色
+		// 获取当前用户
 		userID := GetCurrentUserID(c)
 		if userID == 0 {
 			response.Unauthorized(c, "user not found")
+			return
+		}
+
+		// admin用户跳过权限检查
+		if GetCurrentUsername(c) == "admin" {
+			c.Next()
 			return
 		}
 

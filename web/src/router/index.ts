@@ -17,75 +17,103 @@ const routes: RouteRecordRaw[] = [
       {
         path: 'dashboard',
         name: 'Dashboard',
-        component: () => import('../views/system/Dashboard.vue'),
-        meta: { title: '仪表盘' },
+        component: () => import('../views/dashboard/Index.vue'),
+        meta: { title: '首页' },
       },
-      // 系统管理
       {
-        path: 'system/users',
+        path: 'profile',
+        name: 'Profile',
+        component: () => import('../views/system/Profile.vue'),
+        meta: { title: '个人中心' },
+      },
+      // 权限管理
+      {
+        path: 'permission/users',
         name: 'Users',
-        component: () => import('../views/system/Users.vue'),
-        meta: { title: '用户管理' },
+        component: () => import('../views/permission/Users.vue'),
+        meta: { title: '用户管理', parent: '权限管理' },
       },
       {
-        path: 'system/roles',
+        path: 'permission/roles',
         name: 'Roles',
-        component: () => import('../views/system/Roles.vue'),
-        meta: { title: '角色管理' },
+        component: () => import('../views/permission/Roles.vue'),
+        meta: { title: '角色管理', parent: '权限管理' },
       },
       {
-        path: 'system/tenants',
-        name: 'Tenants',
-        component: () => import('../views/system/Tenants.vue'),
-        meta: { title: '租户管理' },
-      },
-      {
-        path: 'system/menus',
+        path: 'permission/menus',
         name: 'Menus',
-        component: () => import('../views/system/Menus.vue'),
-        meta: { title: '菜单管理' },
+        component: () => import('../views/permission/Menus.vue'),
+        meta: { title: '菜单管理', parent: '权限管理' },
       },
-      // 日志库管理
       {
-        path: 'logstore',
+        path: 'permission/dept',
+        name: 'Dept',
+        component: () => import('../views/permission/Dept.vue'),
+        meta: { title: '部门管理', parent: '权限管理' },
+      },
+      {
+        path: 'permission/post',
+        name: 'Post',
+        component: () => import('../views/permission/Post.vue'),
+        meta: { title: '岗位管理', parent: '权限管理' },
+      },
+      // 系统监控
+      {
+        path: 'monitor/loginlog',
+        name: 'LoginLog',
+        component: () => import('../views/monitor/LoginLog.vue'),
+        meta: { title: '登录日志', parent: '系统监控' },
+      },
+      {
+        path: 'monitor/operlog',
+        name: 'OperLog',
+        component: () => import('../views/monitor/OperLog.vue'),
+        meta: { title: '操作日志', parent: '系统监控' },
+      },
+      {
+        path: 'monitor/online',
+        name: 'Online',
+        component: () => import('../views/monitor/Online.vue'),
+        meta: { title: '在线用户', parent: '系统监控' },
+      },
+      // 日志管理
+      {
+        path: 'log/store',
         name: 'LogStore',
-        component: () => import('../views/logstore/Index.vue'),
-        meta: { title: '日志库管理' },
+        component: () => import('../views/log/Store.vue'),
+        meta: { title: '日志库', parent: '日志管理' },
       },
-      // 日志查询
       {
-        path: 'search',
-        name: 'LogSearch',
-        component: () => import('../views/search/Index.vue'),
-        meta: { title: '日志查询' },
+        path: 'log/list',
+        name: 'LogList',
+        component: () => import('../views/log/List.vue'),
+        meta: { title: '日志查询', parent: '日志管理' },
       },
-      // 聚合分析
+      // 备份管理
       {
-        path: 'analysis',
-        name: 'Analysis',
-        component: () => import('../views/analysis/Index.vue'),
-        meta: { title: '聚合分析' },
+        path: 'backup/snapshots',
+        name: 'Snapshots',
+        component: () => import('../views/backup/Snapshots.vue'),
+        meta: { title: '备份列表', parent: '备份管理' },
       },
-      // 告警管理
       {
-        path: 'alert',
-        name: 'Alert',
-        component: () => import('../views/alert/Index.vue'),
-        meta: { title: '告警管理' },
+        path: 'backup/policies',
+        name: 'Policies',
+        component: () => import('../views/backup/Policies.vue'),
+        meta: { title: '备份策略', parent: '备份管理' },
       },
-      // 生命周期管理
+      // 日志采集
       {
-        path: 'lifecycle',
-        name: 'Lifecycle',
-        component: () => import('../views/lifecycle/Index.vue'),
-        meta: { title: '生命周期管理' },
+        path: 'collect/tasks',
+        name: 'CollectTasks',
+        component: () => import('../views/collect/Tasks.vue'),
+        meta: { title: '采集任务', parent: '日志采集' },
       },
-      // Agent管理
       {
-        path: 'agent',
-        name: 'Agent',
-        component: () => import('../views/agent/Index.vue'),
-        meta: { title: 'Agent管理' },
+        path: 'collect/agents',
+        name: 'CollectAgents',
+        component: () => import('../views/collect/Agents.vue'),
+        meta: { title: 'Agent管理', parent: '日志采集' },
       },
     ],
   },

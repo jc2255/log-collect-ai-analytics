@@ -1,0 +1,104 @@
+/* ========== 科技风主题变量 ========== */
+:root {
+  /* 主色调 - 电光蓝 */
+  --tech-primary: #00d4ff;
+  --tech-primary-light: #33ddff;
+  --tech-primary-dark: #0099cc;
+  --tech-primary-bg: rgba(0, 212, 255, 0.08);
+  --tech-primary-glow: rgba(0, 212, 255, 0.3);
+
+  /* 辅助色 */
+  --tech-success: #10b981;
+  --tech-warning: #f59e0b;
+  --tech-danger: #ef4444;
+  --tech-info: #6366f1;
+
+  /* 渐变 */
+  --tech-gradient-primary: linear-gradient(135deg, #00d4ff 0%, #0ea5e9 50%, #6366f1 100%);
+  --tech-gradient-sidebar: linear-gradient(180deg, #0a1628 0%, #0f1b2d 40%, #0d1926 100%);
+  --tech-gradient-header: linear-gradient(90deg, rgba(0,212,255,0.03) 0%, rgba(99,102,241,0.03) 100%);
+  --tech-gradient-card: linear-gradient(135deg, rgba(0,212,255,0.06) 0%, rgba(99,102,241,0.04) 100%);
+  --tech-gradient-stat-1: linear-gradient(135deg, #00d4ff 0%, #0ea5e9 100%);
+  --tech-gradient-stat-2: linear-gradient(135deg, #10b981 0%, #059669 100%);
+  --tech-gradient-stat-3: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+  --tech-gradient-stat-4: linear-gradient(135deg, #6366f1 0%, #4f46e5 100%);
+  --tech-gradient-login: linear-gradient(135deg, #0a1628 0%, #0f1b2d 30%, #0d1926 60%, #111827 100%);
+
+  /* 深色背景层级 */
+  --tech-bg-base: #0a1628;
+  --tech-bg-page: #0c1829;
+  --tech-bg-card: #111d31;
+  --tech-bg-elevated: #152238;
+  --tech-bg-hover: #1a2a45;
+  --tech-bg-active: #1e3050;
+
+  /* 文字色 */
+  --tech-text-primary: #e2e8f0;
+  --tech-text-regular: #94a3b8;
+  --tech-text-secondary: #64748b;
+  --tech-text-placeholder: #475569;
+
+  /* 边框色 */
+  --tech-border: rgba(0, 212, 255, 0.08);
+  --tech-border-light: rgba(0, 212, 255, 0.05);
+  --tech-border-active: rgba(0, 212, 255, 0.25);
+
+  /* 阴影 */
+  --tech-shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.3);
+  --tech-shadow-md: 0 4px 12px rgba(0, 0, 0, 0.4);
+  --tech-shadow-lg: 0 8px 24px rgba(0, 0, 0, 0.5);
+  --tech-shadow-glow: 0 0 20px rgba(0, 212, 255, 0.15);
+
+  /* 圆角 */
+  --tech-radius-sm: 6px;
+  --tech-radius-md: 8px;
+  --tech-radius-lg: 12px;
+  --tech-radius-xl: 16px;
+
+  /* Element Plus 覆盖变量 */
+  --el-color-primary: #00d4ff;
+  --el-color-primary-light-3: #33ddff;
+  --el-color-primary-light-5: #66e5ff;
+  --el-color-primary-light-7: #99edff;
+  --el-color-primary-light-8: #b3f2ff;
+  --el-color-primary-light-9: #ccf7ff;
+  --el-color-primary-dark-2: #0099cc;
+  --el-color-success: #10b981;
+  --el-color-warning: #f59e0b;
+  --el-color-danger: #ef4444;
+  --el-color-info: #64748b;
+  --el-bg-color: #0c1829;
+  --el-bg-color-page: #0a1628;
+  --el-bg-color-overlay: #152238;
+  --el-text-color-primary: #e2e8f0;
+  --el-text-color-regular: #94a3b8;
+  --el-text-color-secondary: #64748b;
+  --el-text-color-placeholder: #475569;
+  --el-border-color: rgba(0, 212, 255, 0.1);
+  --el-border-color-light: rgba(0, 212, 255, 0.06);
+  --el-border-color-lighter: rgba(0, 212, 255, 0.04);
+  --el-fill-color: #152238;
+  --el-fill-color-light: #111d31;
+  --el-fill-color-lighter: #0f1b2d;
+  --el-fill-color-blank: #111d31;
+  --el-mask-color: rgba(0, 0, 0, 0.6);
+  --el-card-bg-color: #111d31;
+  --el-dialog-bg-color: #152238;
+  --el-menu-bg-color: #0a1628;
+  --el-menu-hover-bg-color: #1a2a45;
+  --el-menu-active-color: #00d4ff;
+  --el-menu-text-color: #94a3b8;
+  --el-menu-hover-text-color: #e2e8f0;
+  --el-menu-item-font-size: 14px;
+  --el-table-bg-color: #111d31;
+  --el-table-tr-bg-color: #111d31;
+  --el-table-header-bg-color: #0f1b2d;
+  --el-table-row-hover-bg-color: #1a2a45;
+  --el-table-border-color: rgba(0, 212, 255, 0.06);
+  --el-table-header-text-color: #94a3b8;
+  --el-table-text-color: #e2e8f0;
+  --el-table-current-row-bg-color: rgba(0, 212, 255, 0.08);
+  --el-pagination-bg-color: transparent;
+  --el-pagination-button-bg-color: #152238;
+  --el-pagination-hover-color: #00d4ff;
+}

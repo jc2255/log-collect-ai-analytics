@@ -32,21 +32,23 @@ func AuditLog() gin.HandlerFunc {
 		c.Next()
 		_ = time.Since(start)
 
+		// 在goroutine之前提取context数据（Gin会回收context）
+		userID := GetCurrentUserID(c)
+		username := GetCurrentUsername(c)
+		clientIP := c.ClientIP()
+		userAgent := c.Request.UserAgent()
+		path := c.Request.URL.Path
+
 		// 异步记录审计日志
 		go func() {
-			userID := GetCurrentUserID(c)
-			tenantID := GetCurrentTenantID(c)
-			username := GetCurrentUsername(c)
-
 			auditLog := model.AuditLog{
-				TenantID:  tenantID,
 				UserID:    userID,
 				Username:  username,
-				Action:    method + " " + c.Request.URL.Path,
-				Resource:  c.Request.URL.Path,
+				Action:    method + " " + path,
+				Resource:  path,
 				Detail:    string(bodyBytes),
-				IP:        c.ClientIP(),
-				UserAgent: c.Request.UserAgent(),
+				IP:        clientIP,
+				UserAgent: userAgent,
 			}
 
 			if err := model.GetDB().Create(&auditLog).Error; err != nil {
