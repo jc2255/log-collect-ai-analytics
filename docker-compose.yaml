@@ -81,7 +81,9 @@ services:
       - lca-net
 
   elasticsearch:
-    image: ccr.ccs.tencentyun.com/lcalog/es:7.10
+    build:
+      context: .
+      dockerfile: deploy/Dockerfile.es
     container_name: lca-elasticsearch
     restart: always
     ports:
