@@ -149,7 +149,7 @@ docker compose logs -f apiserver
 
 启动完成后访问：**http://your-server-ip**
 
-默认账号：`admin`  默认密码：`Admin@123456`
+默认账号：`admin`  默认密码：`dmin@123456`
 
 > ⚠️ 首次使用需在「系统设置 → 授权管理」页面激活授权码
 
