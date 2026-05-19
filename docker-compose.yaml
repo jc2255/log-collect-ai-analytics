@@ -81,7 +81,7 @@ services:
       - lca-net
 
   elasticsearch:
-    image: docker.m.daocloud.io/library/elasticsearch:7.10.2
+    image: ccr.ccs.tencentyun.com/lcalog/elasticsearch:v1
     platform: linux/arm64
     container_name: lca-elasticsearch
     restart: always
