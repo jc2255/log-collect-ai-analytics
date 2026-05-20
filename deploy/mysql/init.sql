@@ -1,5 +1,6 @@
 -- LCA 日志收集智能分析系统 - 数据库初始化
--- 表结构由 GORM AutoMigrate 自动创建，此文件负责：基础参数 + 种子数据
+-- 包含：完整建表 DDL + 基础参数 + 种子数据
+-- 使用 CREATE TABLE IF NOT EXISTS，可重复执行（幂等）
 
 CREATE DATABASE IF NOT EXISTS lca DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 USE lca;
@@ -8,8 +9,445 @@ SET GLOBAL max_connections = 500;
 SET GLOBAL innodb_buffer_pool_size = 268435456;
 
 -- =====================================================================
--- 以下种子数据在服务首次启动、AutoMigrate 完成后执行
--- 使用 INSERT IGNORE 保证幂等，重复执行不报错
+-- 建表 DDL（与 GORM AutoMigrate 保持一致）
+-- =====================================================================
+
+CREATE TABLE IF NOT EXISTS `agents` (
+  `id` bigint unsigned NOT NULL AUTO_INCREMENT,
+  `created_at` datetime(3) DEFAULT NULL,
+  `updated_at` datetime(3) DEFAULT NULL,
+  `deleted_at` datetime(3) DEFAULT NULL,
+  `hostname` varchar(200) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `ip` varchar(50) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `os_type` varchar(20) COLLATE utf8mb4_unicode_ci DEFAULT NULL COMMENT 'linux/windows',
+  `version` varchar(50) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `status` varchar(20) COLLATE utf8mb4_unicode_ci DEFAULT 'offline' COMMENT 'online/offline',
+  `last_heartbeat` bigint DEFAULT NULL,
+  `labels` text COLLATE utf8mb4_unicode_ci COMMENT '标签JSON',
+  PRIMARY KEY (`id`),
+  KEY `idx_agents_deleted_at` (`deleted_at`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS `alert_actions` (
+  `id` bigint unsigned NOT NULL AUTO_INCREMENT,
+  `created_at` datetime(3) DEFAULT NULL,
+  `updated_at` datetime(3) DEFAULT NULL,
+  `deleted_at` datetime(3) DEFAULT NULL,
+  `rule_id` bigint unsigned NOT NULL,
+  `action_type` varchar(50) COLLATE utf8mb4_unicode_ci NOT NULL COMMENT 'webhook/email/wecom/dingtalk',
+  `config` text COLLATE utf8mb4_unicode_ci NOT NULL COMMENT '动作配置JSON',
+  `status` tinyint DEFAULT '1',
+  PRIMARY KEY (`id`),
+  KEY `idx_alert_actions_deleted_at` (`deleted_at`),
+  KEY `idx_alert_actions_rule_id` (`rule_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS `alert_histories` (
+  `id` bigint unsigned NOT NULL AUTO_INCREMENT,
+  `created_at` datetime(3) DEFAULT NULL,
+  `updated_at` datetime(3) DEFAULT NULL,
+  `deleted_at` datetime(3) DEFAULT NULL,
+  `rule_id` bigint unsigned NOT NULL,
+  `content` text COLLATE utf8mb4_unicode_ci,
+  `status` varchar(20) COLLATE utf8mb4_unicode_ci DEFAULT 'firing' COMMENT 'firing/resolved',
+  `rule_name` varchar(100) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `severity` varchar(20) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `store_name` varchar(100) COLLATE utf8mb4_unicode_ci DEFAULT NULL COMMENT '触发告警的日志库名称',
+  `raw_logs` longtext COLLATE utf8mb4_unicode_ci COMMENT '触发告警时的原始日志样本JSON',
+  `root_cause` text COLLATE utf8mb4_unicode_ci COMMENT '根因分析',
+  `resolution` text COLLATE utf8mb4_unicode_ci COMMENT '修复步骤(markdown)',
+  `category` varchar(50) COLLATE utf8mb4_unicode_ci DEFAULT NULL COMMENT '问题分类',
+  PRIMARY KEY (`id`),
+  KEY `idx_alert_histories_deleted_at` (`deleted_at`),
+  KEY `idx_alert_histories_rule_id` (`rule_id`),
+  KEY `idx_alert_histories_store_name` (`store_name`),
+  KEY `idx_alert_histories_category` (`category`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS `alert_rules` (
+  `id` bigint unsigned NOT NULL AUTO_INCREMENT,
+  `created_at` datetime(3) DEFAULT NULL,
+  `updated_at` datetime(3) DEFAULT NULL,
+  `deleted_at` datetime(3) DEFAULT NULL,
+  `store_id` bigint unsigned NOT NULL,
+  `name` varchar(100) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `description` varchar(500) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `query_condition` text COLLATE utf8mb4_unicode_ci NOT NULL COMMENT '查询条件DSL',
+  `trigger_condition` text COLLATE utf8mb4_unicode_ci NOT NULL COMMENT '触发条件JSON',
+  `severity` varchar(20) COLLATE utf8mb4_unicode_ci DEFAULT 'warning' COMMENT 'critical/warning/info',
+  `cron_expr` varchar(50) COLLATE utf8mb4_unicode_ci NOT NULL COMMENT '执行cron表达式',
+  `silence_minutes` bigint DEFAULT '5',
+  `status` tinyint DEFAULT '1',
+  PRIMARY KEY (`id`),
+  KEY `idx_alert_rules_deleted_at` (`deleted_at`),
+  KEY `idx_alert_rules_store_id` (`store_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS `audit_logs` (
+  `id` bigint unsigned NOT NULL AUTO_INCREMENT,
+  `created_at` datetime(3) DEFAULT NULL,
+  `updated_at` datetime(3) DEFAULT NULL,
+  `deleted_at` datetime(3) DEFAULT NULL,
+  `user_id` bigint unsigned NOT NULL,
+  `username` varchar(50) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `action` varchar(100) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `resource` varchar(200) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `detail` text COLLATE utf8mb4_unicode_ci,
+  `ip` varchar(50) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `user_agent` varchar(500) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `module` varchar(100) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  KEY `idx_audit_logs_deleted_at` (`deleted_at`),
+  KEY `idx_audit_logs_user_id` (`user_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS `backup_records` (
+  `id` bigint unsigned NOT NULL AUTO_INCREMENT,
+  `created_at` datetime(3) DEFAULT NULL,
+  `updated_at` datetime(3) DEFAULT NULL,
+  `deleted_at` datetime(3) DEFAULT NULL,
+  `slm_policy_id` bigint unsigned NOT NULL,
+  `tenant_id` bigint unsigned NOT NULL,
+  `snapshot_name` varchar(200) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `indices` text COLLATE utf8mb4_unicode_ci COMMENT '备份的索引列表',
+  `status` varchar(20) COLLATE utf8mb4_unicode_ci DEFAULT 'in_progress' COMMENT 'in_progress/success/failed',
+  `oss_path` varchar(500) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `size_bytes` bigint DEFAULT '0',
+  `started_at` bigint DEFAULT NULL,
+  `finished_at` bigint DEFAULT NULL,
+  `error_msg` varchar(1000) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  KEY `idx_backup_records_deleted_at` (`deleted_at`),
+  KEY `idx_backup_records_slm_policy_id` (`slm_policy_id`),
+  KEY `idx_backup_records_tenant_id` (`tenant_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS `casbin_rule` (
+  `id` bigint unsigned NOT NULL AUTO_INCREMENT,
+  `ptype` varchar(100) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `v0` varchar(100) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `v1` varchar(100) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `v2` varchar(100) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `v3` varchar(100) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `v4` varchar(100) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `v5` varchar(100) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `idx_casbin_rule` (`ptype`,`v0`,`v1`,`v2`,`v3`,`v4`,`v5`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS `collect_tasks` (
+  `id` bigint unsigned NOT NULL AUTO_INCREMENT,
+  `created_at` datetime(3) DEFAULT NULL,
+  `updated_at` datetime(3) DEFAULT NULL,
+  `deleted_at` datetime(3) DEFAULT NULL,
+  `agent_id` bigint unsigned NOT NULL,
+  `store_id` bigint unsigned NOT NULL,
+  `log_path_pattern` varchar(500) COLLATE utf8mb4_unicode_ci NOT NULL COMMENT '日志路径模式',
+  `multiline_pattern` varchar(500) COLLATE utf8mb4_unicode_ci DEFAULT NULL COMMENT '多行合并正则',
+  `parse_mode` varchar(20) COLLATE utf8mb4_unicode_ci DEFAULT 'json' COMMENT 'json/regex/delimiter/raw',
+  `parse_config` text COLLATE utf8mb4_unicode_ci COMMENT '解析配置JSON',
+  `status` tinyint DEFAULT '1' COMMENT '1-启用 0-禁用',
+  `store_name` varchar(100) COLLATE utf8mb4_unicode_ci NOT NULL COMMENT '日志库名称',
+  PRIMARY KEY (`id`),
+  KEY `idx_collect_tasks_deleted_at` (`deleted_at`),
+  KEY `idx_collect_tasks_agent_id` (`agent_id`),
+  KEY `idx_collect_tasks_store_id` (`store_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS `departments` (
+  `id` bigint unsigned NOT NULL AUTO_INCREMENT,
+  `created_at` datetime(3) DEFAULT NULL,
+  `updated_at` datetime(3) DEFAULT NULL,
+  `deleted_at` datetime(3) DEFAULT NULL,
+  `parent_id` bigint unsigned DEFAULT '0',
+  `name` varchar(100) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `sort` bigint DEFAULT '0',
+  `leader` varchar(50) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `phone` varchar(20) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `email` varchar(100) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `status` tinyint DEFAULT '1',
+  PRIMARY KEY (`id`),
+  KEY `idx_departments_deleted_at` (`deleted_at`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS `file_offsets` (
+  `id` bigint unsigned NOT NULL AUTO_INCREMENT,
+  `agent_id` varchar(100) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `task_id` bigint unsigned NOT NULL,
+  `file_path` varchar(500) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `file_inode` bigint unsigned NOT NULL COMMENT '文件inode',
+  `offset` bigint NOT NULL DEFAULT '0' COMMENT '采集偏移量',
+  `updated_at` datetime(3) DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  KEY `idx_file_offsets_agent_id` (`agent_id`),
+  KEY `idx_file_offsets_task_id` (`task_id`),
+  KEY `idx_file_offsets_file_path` (`file_path`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS `ilm_policies` (
+  `id` bigint unsigned NOT NULL AUTO_INCREMENT,
+  `created_at` datetime(3) DEFAULT NULL,
+  `updated_at` datetime(3) DEFAULT NULL,
+  `deleted_at` datetime(3) DEFAULT NULL,
+  `tenant_id` bigint unsigned NOT NULL,
+  `store_id` bigint unsigned NOT NULL,
+  `name` varchar(100) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `hot_days` bigint DEFAULT '7',
+  `warm_days` bigint DEFAULT '30',
+  `cold_days` bigint DEFAULT '90',
+  `delete_days` bigint DEFAULT '180',
+  `hot_config` text COLLATE utf8mb4_unicode_ci COMMENT 'hot阶段配置JSON',
+  `warm_config` text COLLATE utf8mb4_unicode_ci COMMENT 'warm阶段配置JSON',
+  `cold_config` text COLLATE utf8mb4_unicode_ci COMMENT 'cold阶段配置JSON',
+  `status` tinyint DEFAULT '1',
+  PRIMARY KEY (`id`),
+  KEY `idx_ilm_policies_deleted_at` (`deleted_at`),
+  KEY `idx_ilm_policies_tenant_id` (`tenant_id`),
+  KEY `idx_ilm_policies_store_id` (`store_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS `licenses` (
+  `id` bigint unsigned NOT NULL AUTO_INCREMENT,
+  `created_at` datetime(3) DEFAULT NULL,
+  `updated_at` datetime(3) DEFAULT NULL,
+  `deleted_at` datetime(3) DEFAULT NULL,
+  `license_key` varchar(1000) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `machine_id` varchar(128) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `license_type` varchar(20) COLLATE utf8mb4_unicode_ci NOT NULL COMMENT 'monthly/yearly/permanent',
+  `expires_at` datetime(3) DEFAULT NULL,
+  `bound_at` datetime(3) DEFAULT NULL,
+  `status` tinyint DEFAULT '0' COMMENT '0-未激活 1-已激活 2-已过期',
+  PRIMARY KEY (`id`),
+  KEY `idx_licenses_deleted_at` (`deleted_at`),
+  KEY `idx_licenses_machine_id` (`machine_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS `log_store_fields` (
+  `id` bigint unsigned NOT NULL AUTO_INCREMENT,
+  `created_at` datetime(3) DEFAULT NULL,
+  `updated_at` datetime(3) DEFAULT NULL,
+  `deleted_at` datetime(3) DEFAULT NULL,
+  `store_id` bigint unsigned NOT NULL,
+  `field_name` varchar(100) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `field_type` varchar(50) COLLATE utf8mb4_unicode_ci NOT NULL COMMENT 'keyword/text/long/double/date/ip',
+  `is_indexed` tinyint(1) DEFAULT '1',
+  `is_keyword` tinyint(1) DEFAULT '0',
+  `analyzer` varchar(50) COLLATE utf8mb4_unicode_ci DEFAULT NULL COMMENT '分词器',
+  `sort` bigint DEFAULT '0',
+  PRIMARY KEY (`id`),
+  KEY `idx_log_store_fields_deleted_at` (`deleted_at`),
+  KEY `idx_log_store_fields_store_id` (`store_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS `log_stores` (
+  `id` bigint unsigned NOT NULL AUTO_INCREMENT,
+  `created_at` datetime(3) DEFAULT NULL,
+  `updated_at` datetime(3) DEFAULT NULL,
+  `deleted_at` datetime(3) DEFAULT NULL,
+  `name` varchar(100) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `description` varchar(500) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `index_pattern` varchar(200) COLLATE utf8mb4_unicode_ci DEFAULT NULL COMMENT 'ES索引模式',
+  `api_key` varchar(100) COLLATE utf8mb4_unicode_ci DEFAULT NULL COMMENT '日志推送API Key',
+  `kafka_topic` varchar(200) COLLATE utf8mb4_unicode_ci DEFAULT NULL COMMENT 'Kafka topic名称',
+  `status` tinyint DEFAULT '1',
+  `compress` tinyint(1) DEFAULT '1' COMMENT '是否压缩存储',
+  `roll_max_days` bigint DEFAULT '0' COMMENT '滚动最大天数(0不限)',
+  `roll_max_size_gb` bigint DEFAULT '0' COMMENT '滚动最大容量GB(0不限)',
+  `cold_days` bigint DEFAULT '0' COMMENT '冷存储天数(0不限)',
+  `delete_days` bigint DEFAULT '90' COMMENT '删除数据天数',
+  `oss_repository` varchar(200) COLLATE utf8mb4_unicode_ci DEFAULT NULL COMMENT 'OSS仓库名称',
+  `oss_endpoint` varchar(300) COLLATE utf8mb4_unicode_ci DEFAULT NULL COMMENT 'OSS Endpoint',
+  `oss_bucket` varchar(200) COLLATE utf8mb4_unicode_ci DEFAULT NULL COMMENT 'OSS Bucket名称',
+  `oss_access_key_id` varchar(200) COLLATE utf8mb4_unicode_ci DEFAULT NULL COMMENT 'OSS AccessKeyID',
+  `oss_access_key_secret` varchar(200) COLLATE utf8mb4_unicode_ci DEFAULT NULL COMMENT 'OSS AccessKeySecret',
+  `oss_path` varchar(500) COLLATE utf8mb4_unicode_ci DEFAULT NULL COMMENT 'OSS存储路径',
+  `oss_chunk_size` varchar(20) COLLATE utf8mb4_unicode_ci DEFAULT '500mb' COMMENT '分块大小',
+  `ai_alert_enabled` tinyint(1) DEFAULT '0' COMMENT '是否启用AI智能告警',
+  `ai_alert_config` text COLLATE utf8mb4_unicode_ci COMMENT 'AI告警配置JSON',
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `idx_log_stores_name` (`name`),
+  KEY `idx_log_stores_deleted_at` (`deleted_at`),
+  KEY `idx_log_stores_api_key` (`api_key`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS `login_logs` (
+  `id` bigint unsigned NOT NULL AUTO_INCREMENT,
+  `user_id` bigint unsigned DEFAULT NULL,
+  `username` varchar(50) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `ip` varchar(50) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `location` varchar(200) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `browser` varchar(200) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `os` varchar(200) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `status` tinyint DEFAULT '1' COMMENT '1-成功 0-失败',
+  `msg` varchar(500) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `module` varchar(50) COLLATE utf8mb4_unicode_ci DEFAULT '后台',
+  `created_at` datetime(3) DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  KEY `idx_login_logs_user_id` (`user_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS `menus` (
+  `id` bigint unsigned NOT NULL AUTO_INCREMENT,
+  `created_at` datetime(3) DEFAULT NULL,
+  `updated_at` datetime(3) DEFAULT NULL,
+  `deleted_at` datetime(3) DEFAULT NULL,
+  `parent_id` bigint unsigned DEFAULT '0',
+  `name` varchar(50) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `path` varchar(200) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `component` varchar(200) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `icon` varchar(100) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `sort` bigint DEFAULT '0',
+  `status` tinyint DEFAULT '1',
+  `menu_type` varchar(10) COLLATE utf8mb4_unicode_ci DEFAULT 'M' COMMENT 'M-目录 C-菜单 F-按钮',
+  `visible` tinyint DEFAULT '1' COMMENT '1-显示 0-隐藏',
+  `perms` varchar(200) COLLATE utf8mb4_unicode_ci DEFAULT NULL COMMENT '权限标识',
+  `api_path` varchar(200) COLLATE utf8mb4_unicode_ci DEFAULT NULL COMMENT 'API接口路径',
+  PRIMARY KEY (`id`),
+  KEY `idx_menus_deleted_at` (`deleted_at`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS `permissions` (
+  `id` bigint unsigned NOT NULL AUTO_INCREMENT,
+  `created_at` datetime(3) DEFAULT NULL,
+  `updated_at` datetime(3) DEFAULT NULL,
+  `deleted_at` datetime(3) DEFAULT NULL,
+  `name` varchar(100) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `code` varchar(100) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `type` varchar(20) COLLATE utf8mb4_unicode_ci NOT NULL COMMENT 'menu/button/api',
+  `parent_id` bigint unsigned DEFAULT '0',
+  `path` varchar(200) COLLATE utf8mb4_unicode_ci DEFAULT NULL COMMENT 'API路径或前端路由',
+  `method` varchar(10) COLLATE utf8mb4_unicode_ci DEFAULT NULL COMMENT 'HTTP方法',
+  `sort` bigint DEFAULT '0',
+  `icon` varchar(100) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `status` tinyint DEFAULT '1',
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `idx_permissions_code` (`code`),
+  KEY `idx_permissions_deleted_at` (`deleted_at`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS `posts` (
+  `id` bigint unsigned NOT NULL AUTO_INCREMENT,
+  `created_at` datetime(3) DEFAULT NULL,
+  `updated_at` datetime(3) DEFAULT NULL,
+  `deleted_at` datetime(3) DEFAULT NULL,
+  `name` varchar(100) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `code` varchar(50) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `sort` bigint DEFAULT '0',
+  `status` tinyint DEFAULT '1',
+  `remark` varchar(500) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `idx_posts_code` (`code`),
+  KEY `idx_posts_deleted_at` (`deleted_at`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS `role_menus` (
+  `role_id` bigint unsigned NOT NULL,
+  `menu_id` bigint unsigned NOT NULL,
+  PRIMARY KEY (`role_id`,`menu_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS `role_permissions` (
+  `role_id` bigint unsigned NOT NULL,
+  `permission_id` bigint unsigned NOT NULL,
+  PRIMARY KEY (`role_id`,`permission_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS `roles` (
+  `id` bigint unsigned NOT NULL AUTO_INCREMENT,
+  `created_at` datetime(3) DEFAULT NULL,
+  `updated_at` datetime(3) DEFAULT NULL,
+  `deleted_at` datetime(3) DEFAULT NULL,
+  `name` varchar(50) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `code` varchar(50) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `description` varchar(500) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `status` tinyint DEFAULT '1',
+  `sort` bigint DEFAULT '0',
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `idx_roles_code` (`code`),
+  KEY `idx_roles_deleted_at` (`deleted_at`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS `slm_policies` (
+  `id` bigint unsigned NOT NULL AUTO_INCREMENT,
+  `created_at` datetime(3) DEFAULT NULL,
+  `updated_at` datetime(3) DEFAULT NULL,
+  `deleted_at` datetime(3) DEFAULT NULL,
+  `name` varchar(100) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `repository` varchar(200) COLLATE utf8mb4_unicode_ci DEFAULT 'lca_backup',
+  `retention_days` bigint DEFAULT '30',
+  `status` tinyint DEFAULT '1',
+  `log_store` varchar(100) COLLATE utf8mb4_unicode_ci NOT NULL COMMENT '日志库名称',
+  `frequency` varchar(20) COLLATE utf8mb4_unicode_ci NOT NULL COMMENT 'every_day/every_week/every_month',
+  `min_count` bigint DEFAULT '5',
+  `max_count` bigint DEFAULT '100',
+  `cron_expression` varchar(100) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  KEY `idx_slm_policies_deleted_at` (`deleted_at`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS `snapshot_records` (
+  `id` bigint unsigned NOT NULL AUTO_INCREMENT,
+  `created_at` datetime(3) DEFAULT NULL,
+  `updated_at` datetime(3) DEFAULT NULL,
+  `deleted_at` datetime(3) DEFAULT NULL,
+  `snapshot_name` varchar(200) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `uuid` varchar(100) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `state` varchar(50) COLLATE utf8mb4_unicode_ci NOT NULL COMMENT 'SUCCESS/IN_PROGRESS/FAILED',
+  `repository` varchar(200) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `indices` text COLLATE utf8mb4_unicode_ci COMMENT '索引列表JSON',
+  `start_time` varchar(50) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `end_time` varchar(50) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `duration_ms` bigint DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `idx_snapshot_records_snapshot_name` (`snapshot_name`),
+  KEY `idx_snapshot_records_deleted_at` (`deleted_at`),
+  KEY `idx_snapshot_records_repository` (`repository`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS `tenants` (
+  `id` bigint unsigned NOT NULL AUTO_INCREMENT,
+  `created_at` datetime(3) DEFAULT NULL,
+  `updated_at` datetime(3) DEFAULT NULL,
+  `deleted_at` datetime(3) DEFAULT NULL,
+  `name` varchar(100) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `code` varchar(50) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `status` tinyint DEFAULT '1' COMMENT '1-启用 0-禁用',
+  `quota_config` text COLLATE utf8mb4_unicode_ci COMMENT '配额配置JSON',
+  `description` varchar(500) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `idx_tenants_name` (`name`),
+  UNIQUE KEY `idx_tenants_code` (`code`),
+  KEY `idx_tenants_deleted_at` (`deleted_at`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS `user_roles` (
+  `user_id` bigint unsigned NOT NULL,
+  `role_id` bigint unsigned NOT NULL,
+  PRIMARY KEY (`user_id`,`role_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS `users` (
+  `id` bigint unsigned NOT NULL AUTO_INCREMENT,
+  `created_at` datetime(3) DEFAULT NULL,
+  `updated_at` datetime(3) DEFAULT NULL,
+  `deleted_at` datetime(3) DEFAULT NULL,
+  `username` varchar(50) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `password_hash` varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `nickname` varchar(100) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `email` varchar(100) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `phone` varchar(20) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `avatar` varchar(500) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `status` tinyint DEFAULT '1' COMMENT '1-启用 0-禁用',
+  `dept_id` bigint unsigned DEFAULT '0',
+  `post_id` bigint unsigned DEFAULT '0',
+  `remark` varchar(500) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `idx_users_username` (`username`),
+  KEY `idx_users_deleted_at` (`deleted_at`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- =====================================================================
+-- 种子数据（INSERT IGNORE 保证幂等，重复执行不报错）
 -- =====================================================================
 
 -- 部门
@@ -67,8 +505,7 @@ INSERT IGNORE INTO `roles` (`id`,`created_at`,`updated_at`,`deleted_at`,`name`,`
 (3,NOW(),NOW(),NULL,'开发人员','dev','开发人员，可查看日志',3,1),
 (4,NOW(),NOW(),NULL,'测试','test','测试人员',4,1);
 
--- 用户（密码均为 admin123，生产环境请修改）
--- admin123 的 bcrypt hash:
+-- 用户（admin/admin123，其余用户密码 lca@2026，生产环境请修改）
 INSERT IGNORE INTO `users` (`id`,`created_at`,`updated_at`,`deleted_at`,`username`,`password_hash`,`nickname`,`email`,`phone`,`avatar`,`status`,`dept_id`,`post_id`,`remark`) VALUES
 (1,NOW(),NOW(),NULL,'admin',   '$2a$10$g0o/BZSRVs4gPO6vyOhMvee2QAMmF1PnQu5h1DkOivqvLuKIFViKG','超级管理员','','','',1,1,1,''),
 (2,NOW(),NOW(),NULL,'zhangsan','$2a$10$g9gg2x6dLr/YEDDmxWb6y.Ak6zYxO7uZDorClnOUa3DmfdogNLim2','张三',       '','','',1,2,3,''),
