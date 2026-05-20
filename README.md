@@ -1,7 +1,7 @@
 <div align="center">
   <img src="web/public/lcalogo.png" alt="LCA Logo" width="80" />
   <h1>LCA · 日志收集智能分析系统</h1>
-  <p>企业级日志采集 · AI 智能告警 · 实时分析 · 多渠道通知</p>
+  <p>企业级日志采集 · 智能运维 · AI 智能告警· 实时分析 · 多渠道通知</p>
 
   [![License](https://img.shields.io/badge/License-Commercial-red.svg)](LICENSE)
   [![Go Version](https://img.shields.io/badge/Go-1.21+-blue.svg)](https://golang.org)
