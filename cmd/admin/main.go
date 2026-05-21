@@ -117,6 +117,8 @@ func main() {
 	// 将验签器注入 LicenseCheck 中间件，每个请求都从 license_key 密文重新验签
 	// 防御：客户手改 MySQL licenses 表的 status / expires_at 不生效
 	middleware.InitLicenseVerifier(licenseVerifier)
+	// 同时注入 lca.top 远程验证地址，中间件会优先走远程验证（本地公钥不配对时避免死循环）
+	middleware.InitLicenseLCATopURL(cfg.LCATopURL)
 
 	// 7. 初始化ES客户端（可选，连不上不影响启动）
 	var esClient *elastic.Client

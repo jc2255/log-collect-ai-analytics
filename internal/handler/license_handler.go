@@ -78,6 +78,36 @@ func (h *LicenseHandler) Status(c *gin.Context) {
 		return
 	}
 
+	// ── 优先远程验证（lca.top 权威数据源）─────────────────────
+	// 适用场景：本地 public_key 与 lca.top 签发用私钥不配对（典型）
+	// 使 Status 接口与 Activate / LicenseCheck 中间件保持一致验证逻辑
+	if h.LCATopURL != "" {
+		remoteResult, rerr := h.verifyRemotely(lic.LicenseKey, machineID)
+		if rerr == nil {
+			if remoteResult.Valid {
+				c.Set("license_valid", true)
+				response.Success(c, gin.H{
+					"activated":    true,
+					"machine_id":   machineID,
+					"license_type": lic.LicenseType,
+					"bound_at":     lic.BoundAt,
+					"expires_at":   lic.ExpiresAt,
+				})
+				return
+			}
+			// 远程明确返回 invalid
+			response.Success(c, gin.H{
+				"activated":    false,
+				"machine_id":   machineID,
+				"reason":       "remote: " + remoteResult.Error,
+				"license_type": lic.LicenseType,
+				"expires_at":   lic.ExpiresAt,
+			})
+			return
+		}
+		// 远程网络故障 → 降级本地 RSA 验签
+	}
+
 	// 未配置验签器（本地验签降级不可用）时，仅依赖 status 字段作为兑底
 	if h.Checker == nil {
 		activated := lic.Status == 1

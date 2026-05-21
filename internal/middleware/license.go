@@ -1,6 +1,9 @@
 package middleware
 
 import (
+	"bytes"
+	"encoding/json"
+	"fmt"
 	"net/http"
 	"strings"
 	"sync"
@@ -28,6 +31,10 @@ var licenseDB *gorm.DB
 // licenseVerifier RSA验签器（用于运行时重新验签，防止DB字段被篡改）
 var licenseVerifier *license.Verifier
 
+// licenseLCATopURL lca.top 远程验证地址（权威数据源）
+// 配置后中间件会优先调远程验证，本地RSA仅作降级兜底
+var licenseLCATopURL string
+
 // 验签结果缓存（5分钟刷新，避免每个请求都做 RSA 验签）
 var (
 	licenseCache     licenseCacheEntry
@@ -35,9 +42,9 @@ var (
 )
 
 type licenseCacheEntry struct {
-	valid    bool
-	checkAt  time.Time
-	reason   string // 失败原因（用于日志/调试）
+	valid   bool
+	checkAt time.Time
+	reason  string // 失败原因（用于日志/调试）
 }
 
 const licenseCacheTTL = 1 * time.Minute
@@ -51,6 +58,44 @@ func InitLicenseDB(db *gorm.DB) {
 // 强烈建议在生产环境配置，否则会退化为只查 DB status 字段（不安全）
 func InitLicenseVerifier(v *license.Verifier) {
 	licenseVerifier = v
+}
+
+// InitLicenseLCATopURL 注入 lca.top 远程验证地址
+// 当本地公钥与 lca.top 签发用私钥不配对时（典型场景），
+// 中间件可走远程验证避免本地 RSA 失败导致死循环（激活后刷新又要激活）
+func InitLicenseLCATopURL(url string) {
+	licenseLCATopURL = url
+}
+
+// remoteVerify 调用 lca.top 远程验证授权码（权威）
+type remoteVerifyResp struct {
+	Valid bool   `json:"valid"`
+	Error string `json:"error"`
+}
+
+func verifyLicenseRemotely(licenseKey, machineID string) (bool, string) {
+	if licenseLCATopURL == "" {
+		return false, "remote url not configured"
+	}
+	url := fmt.Sprintf("%s/api/license/verify", licenseLCATopURL)
+	body, _ := json.Marshal(map[string]string{
+		"license_key": licenseKey,
+		"machine_id":  machineID,
+	})
+	client := &http.Client{Timeout: 5 * time.Second}
+	resp, err := client.Post(url, "application/json", bytes.NewReader(body))
+	if err != nil {
+		return false, "remote unreachable: " + err.Error()
+	}
+	defer resp.Body.Close()
+	var r remoteVerifyResp
+	if err := json.NewDecoder(resp.Body).Decode(&r); err != nil {
+		return false, "remote bad response"
+	}
+	if !r.Valid {
+		return false, "remote: " + r.Error
+	}
+	return true, ""
 }
 
 // validateActiveLicense 从 DB 取出已激活的 license_key 重新做 RSA 验签
@@ -68,6 +113,23 @@ func validateActiveLicense() (bool, string) {
 		return false, "no license record"
 	}
 
+	currentMachineID := license.GetMachineID()
+
+	// ── 优先远程验证（lca.top 权威数据源）─────────────────────
+	// 适用场景：客户本地公钥与 lca.top 签发用私钥不配对（典型）
+	if licenseLCATopURL != "" {
+		ok, reason := verifyLicenseRemotely(lic.LicenseKey, currentMachineID)
+		if ok {
+			return true, ""
+		}
+		// 远程明确返回 invalid（非网络故障）→ 直接拒绝
+		if !strings.HasPrefix(reason, "remote unreachable") && !strings.HasPrefix(reason, "remote bad response") {
+			return false, reason
+		}
+		// 网络故障 → 降级本地 RSA 验签
+	}
+
+	// ── 本地 RSA 验签（远程未配置或网络故障）──────────────────
 	// 没有验签器 → 退化为旧行为（仅查 DB status）
 	if licenseVerifier == nil {
 		if lic.Status == 1 {
@@ -90,7 +152,6 @@ func validateActiveLicense() (bool, string) {
 
 	// 比对机器指纹（payload 里的 machine_id 是签名保护的真值）
 	if result.Payload != nil {
-		currentMachineID := license.GetMachineID()
 		if result.Payload.MachineID != currentMachineID {
 			return false, "machine id mismatch"
 		}
