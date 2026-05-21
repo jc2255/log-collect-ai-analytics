@@ -492,7 +492,7 @@ services:
       - "80:80"
     volumes:
       - ./deploy/ha/nginx-ha.conf:/etc/nginx/conf.d/default.conf
-      - ./web/dist:/usr/share/nginx/html
+      - ./release/web-dist:/usr/share/nginx/html
     depends_on:
       - admin1
       - admin2
