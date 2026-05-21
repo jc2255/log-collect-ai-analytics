@@ -485,7 +485,7 @@ services:
   # ==================== Nginx 负载均衡 ====================
 
   nginx:
-    image: nginx:1.25-alpine
+    image: docker.m.daocloud.io/library/nginx:1.25-alpine
     container_name: lca-nginx-ha
     restart: always
     ports:
