@@ -4,7 +4,7 @@ server:
   mode: "release"
 
 mysql:
-  host: "mysql-master"
+  host: "mysql"
   port: 3306
   user: "root"
   password: "lca2024"
@@ -13,18 +13,12 @@ mysql:
   max_idle_conns: 10
 
 redis:
-  host: "redis-master"
+  host: "redis"
   port: 6379
   password: "lca2024"
   db: 0
   pool_size: 20
   max_retries: 3
-  mode: "sentinel"
-  master_name: "lca-master"
-  sentinel_addrs:
-    - "redis-sentinel1:26379"
-    - "redis-sentinel2:26379"
-    - "redis-sentinel3:26379"
 
 kafka:
   brokers:

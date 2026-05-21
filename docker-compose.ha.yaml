@@ -1,13 +1,16 @@
 # ==========================================================
 # LCA 高可用部署编排 (docker-compose.ha.yaml)
 # 使用方式: docker compose -f docker-compose.ha.yaml up -d
+# 说明: 高可用聚焦在压力大的 Kafka 集群与 ES 集群；
+#       MySQL/Redis 采用单实例（业务压力小）；
+#       admin/apiserver/logtransfer 多实例 + Nginx 负载均衡。
 # ==========================================================
 services:
-  # ==================== MySQL 主从 ====================
+  # ==================== MySQL 单实例 ====================
 
-  mysql-master:
+  mysql:
     image: ccr.ccs.tencentyun.com/lcalog/mysql8:v1
-    container_name: lca-mysql-master
+    container_name: lca-mysql
     restart: always
     ports:
       - "3306:3306"
@@ -17,9 +20,8 @@ services:
       MYSQL_DATABASE: ${MYSQL_DATABASE:-lca}
       MYSQL_CHARSET: utf8mb4
     volumes:
-      - mysql_master_data:/var/lib/mysql
+      - mysql_data:/var/lib/mysql
       - ./deploy/mysql/init.sql:/docker-entrypoint-initdb.d/init.sql
-      - ./deploy/ha/mysql-master.cnf:/etc/mysql/conf.d/master.cnf
     command: --character-set-server=utf8mb4 --collation-server=utf8mb4_unicode_ci --default-authentication-plugin=mysql_native_password
     healthcheck:
       test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-p${MYSQL_ROOT_PASSWORD:-lca2024}"]
@@ -29,160 +31,19 @@ services:
     networks:
       - lca-ha-net
 
-  mysql-slave:
-    image: ccr.ccs.tencentyun.com/lcalog/mysql8:v1
-    container_name: lca-mysql-slave
-    restart: always
-    ports:
-      - "3307:3306"
-    environment:
-      TZ: Asia/Shanghai
-      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-lca2024}
-      MYSQL_DATABASE: ${MYSQL_DATABASE:-lca}
-      MYSQL_CHARSET: utf8mb4
-    volumes:
-      - mysql_slave_data:/var/lib/mysql
-      - ./deploy/ha/mysql-slave.cnf:/etc/mysql/conf.d/slave.cnf
-    command: --character-set-server=utf8mb4 --collation-server=utf8mb4_unicode_ci --default-authentication-plugin=mysql_native_password
-    depends_on:
-      mysql-master:
-        condition: service_healthy
-    healthcheck:
-      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-p${MYSQL_ROOT_PASSWORD:-lca2024}"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-    networks:
-      - lca-ha-net
+  # ==================== Redis 单实例 ====================
 
-  # ==================== Redis Sentinel ====================
-
-  redis-master:
+  redis:
     image: ccr.ccs.tencentyun.com/lcalog/redis:v1
-    container_name: lca-redis-master
+    container_name: lca-redis
     restart: always
     ports:
       - "6379:6379"
     volumes:
-      - redis_master_data:/data
+      - redis_data:/data
     command: redis-server --appendonly yes --requirepass ${REDIS_PASSWORD:-lca2024}
     healthcheck:
       test: ["CMD", "redis-cli", "-a", "${REDIS_PASSWORD:-lca2024}", "ping"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-    networks:
-      - lca-ha-net
-
-  redis-slave1:
-    image: ccr.ccs.tencentyun.com/lcalog/redis:v1
-    container_name: lca-redis-slave1
-    restart: always
-    ports:
-      - "6380:6379"
-    volumes:
-      - redis_slave1_data:/data
-    command: redis-server --appendonly yes --requirepass ${REDIS_PASSWORD:-lca2024} --replicaof redis-master 6379 --masterauth ${REDIS_PASSWORD:-lca2024}
-    depends_on:
-      redis-master:
-        condition: service_healthy
-    healthcheck:
-      test: ["CMD", "redis-cli", "-a", "${REDIS_PASSWORD:-lca2024}", "ping"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-    networks:
-      - lca-ha-net
-
-  redis-slave2:
-    image: ccr.ccs.tencentyun.com/lcalog/redis:v1
-    container_name: lca-redis-slave2
-    restart: always
-    ports:
-      - "6381:6379"
-    volumes:
-      - redis_slave2_data:/data
-    command: redis-server --appendonly yes --requirepass ${REDIS_PASSWORD:-lca2024} --replicaof redis-master 6379 --masterauth ${REDIS_PASSWORD:-lca2024}
-    depends_on:
-      redis-master:
-        condition: service_healthy
-    healthcheck:
-      test: ["CMD", "redis-cli", "-a", "${REDIS_PASSWORD:-lca2024}", "ping"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-    networks:
-      - lca-ha-net
-
-  redis-sentinel1:
-    image: ccr.ccs.tencentyun.com/lcalog/redis:v1
-    container_name: lca-redis-sentinel1
-    restart: always
-    ports:
-      - "26379:26379"
-    volumes:
-      - ./deploy/ha/sentinel1.conf:/etc/redis/sentinel.conf
-      - sentinel1_data:/data
-    command: redis-sentinel /etc/redis/sentinel.conf
-    depends_on:
-      redis-master:
-        condition: service_healthy
-      redis-slave1:
-        condition: service_healthy
-      redis-slave2:
-        condition: service_healthy
-    healthcheck:
-      test: ["CMD", "redis-cli", "-p", "26379", "ping"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-    networks:
-      - lca-ha-net
-
-  redis-sentinel2:
-    image: ccr.ccs.tencentyun.com/lcalog/redis:v1
-    container_name: lca-redis-sentinel2
-    restart: always
-    ports:
-      - "26380:26379"
-    volumes:
-      - ./deploy/ha/sentinel2.conf:/etc/redis/sentinel.conf
-      - sentinel2_data:/data
-    command: redis-sentinel /etc/redis/sentinel.conf
-    depends_on:
-      redis-master:
-        condition: service_healthy
-      redis-slave1:
-        condition: service_healthy
-      redis-slave2:
-        condition: service_healthy
-    healthcheck:
-      test: ["CMD", "redis-cli", "-p", "26379", "ping"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-    networks:
-      - lca-ha-net
-
-  redis-sentinel3:
-    image: ccr.ccs.tencentyun.com/lcalog/redis:v1
-    container_name: lca-redis-sentinel3
-    restart: always
-    ports:
-      - "26381:26379"
-    volumes:
-      - ./deploy/ha/sentinel3.conf:/etc/redis/sentinel.conf
-      - sentinel3_data:/data
-    command: redis-sentinel /etc/redis/sentinel.conf
-    depends_on:
-      redis-master:
-        condition: service_healthy
-      redis-slave1:
-        condition: service_healthy
-      redis-slave2:
-        condition: service_healthy
-    healthcheck:
-      test: ["CMD", "redis-cli", "-p", "26379", "ping"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -367,17 +228,11 @@ services:
       - ./configs/admin-ha.yaml:/app/config.yaml
       - ./configs/rbac_model.conf:/app/configs/rbac_model.conf
     depends_on:
-      mysql-master:
+      mysql:
         condition: service_healthy
-      redis-master:
+      redis:
         condition: service_healthy
       es01:
-        condition: service_healthy
-      redis-sentinel1:
-        condition: service_healthy
-      redis-sentinel2:
-        condition: service_healthy
-      redis-sentinel3:
         condition: service_healthy
     healthcheck:
       test: ["CMD-SHELL", "curl -f http://localhost:8080/health || exit 1"]
@@ -405,17 +260,11 @@ services:
       - ./configs/admin-ha.yaml:/app/config.yaml
       - ./configs/rbac_model.conf:/app/configs/rbac_model.conf
     depends_on:
-      mysql-master:
+      mysql:
         condition: service_healthy
-      redis-master:
+      redis:
         condition: service_healthy
       es01:
-        condition: service_healthy
-      redis-sentinel1:
-        condition: service_healthy
-      redis-sentinel2:
-        condition: service_healthy
-      redis-sentinel3:
         condition: service_healthy
     healthcheck:
       test: ["CMD-SHELL", "curl -f http://localhost:8080/health || exit 1"]
@@ -442,7 +291,7 @@ services:
     volumes:
       - ./configs/apiserver-ha.yaml:/app/config.yaml
     depends_on:
-      mysql-master:
+      mysql:
         condition: service_healthy
     healthcheck:
       test: ["CMD-SHELL", "curl -f http://localhost:8086/health || exit 1"]
@@ -469,7 +318,7 @@ services:
     volumes:
       - ./configs/apiserver-ha.yaml:/app/config.yaml
     depends_on:
-      mysql-master:
+      mysql:
         condition: service_healthy
     healthcheck:
       test: ["CMD-SHELL", "curl -f http://localhost:8086/health || exit 1"]
@@ -496,7 +345,7 @@ services:
     volumes:
       - ./configs/logtransfer-ha.yaml:/app/config.yaml
     depends_on:
-      mysql-master:
+      mysql:
         condition: service_healthy
       es01:
         condition: service_healthy
@@ -520,7 +369,7 @@ services:
     volumes:
       - ./configs/logtransfer-ha.yaml:/app/config.yaml
     depends_on:
-      mysql-master:
+      mysql:
         condition: service_healthy
       es01:
         condition: service_healthy
@@ -559,14 +408,8 @@ services:
 
 # ==================== Volumes ====================
 volumes:
-  mysql_master_data:
-  mysql_slave_data:
-  redis_master_data:
-  redis_slave1_data:
-  redis_slave2_data:
-  sentinel1_data:
-  sentinel2_data:
-  sentinel3_data:
+  mysql_data:
+  redis_data:
   kafka1_data:
   kafka2_data:
   kafka3_data:
