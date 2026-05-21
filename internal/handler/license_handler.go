@@ -182,6 +182,9 @@ func (h *LicenseHandler) saveAndRespond(c *gin.Context, licenseKey, machineID, l
 		return
 	}
 
+	// 激活成功后立即失效中间件缓存，下个业务请求会重新验签
+	middleware.InvalidateLicenseCache()
+
 	c.Set("license_valid", true)
 	response.Success(c, gin.H{
 		"activated":    true,
@@ -202,6 +205,7 @@ func (h *LicenseHandler) Deactivate(c *gin.Context) {
 	}
 
 	h.DB.Model(&lic).Update("status", 0)
+	middleware.InvalidateLicenseCache()
 	c.Set("license_valid", false)
 	response.Success(c, nil)
 }
