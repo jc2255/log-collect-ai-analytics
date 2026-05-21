@@ -227,6 +227,11 @@ services:
     volumes:
       - ./configs/admin-ha.yaml:/app/config.yaml
       - ./configs/rbac_model.conf:/app/configs/rbac_model.conf
+      # 机器ID持久化（admin1/admin2 必须挂同一目录，确保重启后机器ID不变）
+      - ./data/admin:/app/data
+    environment:
+      # 也可通过环境变量手动锁定机器ID（客户购买后设置可避免任何意外变化）
+      LCA_MACHINE_ID: "${LCA_MACHINE_ID:-}"
     depends_on:
       mysql:
         condition: service_healthy
@@ -259,6 +264,10 @@ services:
     volumes:
       - ./configs/admin-ha.yaml:/app/config.yaml
       - ./configs/rbac_model.conf:/app/configs/rbac_model.conf
+      # 机器ID持久化（与 admin1 共享同一文件）
+      - ./data/admin:/app/data
+    environment:
+      LCA_MACHINE_ID: "${LCA_MACHINE_ID:-}"
     depends_on:
       mysql:
         condition: service_healthy

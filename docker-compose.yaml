@@ -131,6 +131,10 @@ services:
     volumes:
       - ./configs/admin-docker.yaml:/app/config.yaml
       - ./configs/rbac_model.conf:/app/configs/rbac_model.conf
+      # 机器ID持久化（避免容器重启后机器ID变化导致授权码失效）
+      - ./data/admin:/app/data
+    environment:
+      LCA_MACHINE_ID: "${LCA_MACHINE_ID:-}"
     depends_on:
       mysql:
         condition: service_healthy
