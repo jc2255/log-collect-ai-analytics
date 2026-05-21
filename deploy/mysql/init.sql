@@ -2,6 +2,11 @@
 -- 包含：完整建表 DDL + 基础参数 + 种子数据
 -- 使用 CREATE TABLE IF NOT EXISTS，可重复执行（幂等）
 
+-- ⭐ 必须放在最顶部：强制连接字符集为 utf8mb4，避免 Docker entrypoint 执行 init.sql 时
+-- 客户端默认 latin1 导致中文双重编码损坏
+SET NAMES utf8mb4;
+SET CHARACTER SET utf8mb4;
+
 CREATE DATABASE IF NOT EXISTS lca DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 USE lca;
 
