@@ -84,7 +84,13 @@ services:
       - redis_slave1_data:/data
     command: redis-server --appendonly yes --requirepass ${REDIS_PASSWORD:-lca2024} --replicaof redis-master 6379 --masterauth ${REDIS_PASSWORD:-lca2024}
     depends_on:
-      - redis-master
+      redis-master:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "redis-cli", "-a", "${REDIS_PASSWORD:-lca2024}", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
     networks:
       - lca-ha-net
 
@@ -98,7 +104,13 @@ services:
       - redis_slave2_data:/data
     command: redis-server --appendonly yes --requirepass ${REDIS_PASSWORD:-lca2024} --replicaof redis-master 6379 --masterauth ${REDIS_PASSWORD:-lca2024}
     depends_on:
-      - redis-master
+      redis-master:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "redis-cli", "-a", "${REDIS_PASSWORD:-lca2024}", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
     networks:
       - lca-ha-net
 
@@ -113,9 +125,12 @@ services:
       - sentinel1_data:/data
     command: redis-sentinel /etc/redis/sentinel.conf
     depends_on:
-      - redis-master
-      - redis-slave1
-      - redis-slave2
+      redis-master:
+        condition: service_healthy
+      redis-slave1:
+        condition: service_healthy
+      redis-slave2:
+        condition: service_healthy
     healthcheck:
       test: ["CMD", "redis-cli", "-p", "26379", "ping"]
       interval: 10s
@@ -135,9 +150,12 @@ services:
       - sentinel2_data:/data
     command: redis-sentinel /etc/redis/sentinel.conf
     depends_on:
-      - redis-master
-      - redis-slave1
-      - redis-slave2
+      redis-master:
+        condition: service_healthy
+      redis-slave1:
+        condition: service_healthy
+      redis-slave2:
+        condition: service_healthy
     healthcheck:
       test: ["CMD", "redis-cli", "-p", "26379", "ping"]
       interval: 10s
@@ -157,9 +175,12 @@ services:
       - sentinel3_data:/data
     command: redis-sentinel /etc/redis/sentinel.conf
     depends_on:
-      - redis-master
-      - redis-slave1
-      - redis-slave2
+      redis-master:
+        condition: service_healthy
+      redis-slave1:
+        condition: service_healthy
+      redis-slave2:
+        condition: service_healthy
     healthcheck:
       test: ["CMD", "redis-cli", "-p", "26379", "ping"]
       interval: 10s
