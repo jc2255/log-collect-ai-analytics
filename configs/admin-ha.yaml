@@ -48,7 +48,7 @@ jwt:
 
 log:
   level: "info"
-  filename: ""
+  filename: "/app/logs/admin.log"
   max_size: 100
   max_backups: 5
   max_age: 30

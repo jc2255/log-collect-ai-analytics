@@ -1,9 +1,9 @@
 # ==========================================================
 # LCA 高可用部署编排 (docker-compose.ha.yaml)
 # 使用方式: docker compose -f docker-compose.ha.yaml up -d
-# 说明: 高可用聚焦在压力大的 Kafka 集群与 ES 集群；
-#       MySQL/Redis 采用单实例（业务压力小）；
-#       admin/apiserver/logtransfer 多实例 + Nginx 负载均衡。
+# 说明: 高可用聚焦在压力大的 Kafka 集群、ES 集群、apiserver；
+#       MySQL/Redis/admin/logtransfer 采用单实例（业务压力小）；
+#       所有应用服务日志挂载到宿主机 ./logs/<svc> 便于排查。
 # ==========================================================
 services:
   # ==================== MySQL 单实例 ====================
@@ -214,59 +214,25 @@ services:
     networks:
       - lca-ha-net
 
-  # ==================== 应用服务 (多实例) ====================
+  # ==================== 应用服务（admin/logtransfer 单机，apiserver 双节点 HA） ====================
 
-  admin1:
+  admin:
     build:
       context: .
       dockerfile: deploy/Dockerfile
       args:
         APP_NAME: admin
-    container_name: lca-admin1
+    container_name: lca-admin
     restart: always
     volumes:
       - ./configs/admin-ha.yaml:/app/config.yaml
       - ./configs/rbac_model.conf:/app/configs/rbac_model.conf
-      # 机器ID持久化（admin1/admin2 必须挂同一目录，确保重启后机器ID不变）
+      # 机器ID持久化（避免容器重启后机器ID变化导致授权码失效）
       - ./data/admin:/app/data
+      # 日志挂载到宿主机便于排查
+      - ./logs/admin:/app/logs
     environment:
       # 也可通过环境变量手动锁定机器ID（客户购买后设置可避免任何意外变化）
-      LCA_MACHINE_ID: "${LCA_MACHINE_ID:-}"
-    depends_on:
-      mysql:
-        condition: service_healthy
-      redis:
-        condition: service_healthy
-      es01:
-        condition: service_healthy
-    healthcheck:
-      test: ["CMD-SHELL", "curl -f http://localhost:8080/health || exit 1"]
-      interval: 15s
-      timeout: 5s
-      retries: 3
-    stop_grace_period: 15s
-    deploy:
-      resources:
-        limits:
-          memory: 512M
-          cpus: '1.0'
-    networks:
-      - lca-ha-net
-
-  admin2:
-    build:
-      context: .
-      dockerfile: deploy/Dockerfile
-      args:
-        APP_NAME: admin
-    container_name: lca-admin2
-    restart: always
-    volumes:
-      - ./configs/admin-ha.yaml:/app/config.yaml
-      - ./configs/rbac_model.conf:/app/configs/rbac_model.conf
-      # 机器ID持久化（与 admin1 共享同一文件）
-      - ./data/admin:/app/data
-    environment:
       LCA_MACHINE_ID: "${LCA_MACHINE_ID:-}"
     depends_on:
       mysql:
@@ -299,6 +265,7 @@ services:
     restart: always
     volumes:
       - ./configs/apiserver-ha.yaml:/app/config.yaml
+      - ./logs/apiserver1:/app/logs
     depends_on:
       mysql:
         condition: service_healthy
@@ -326,6 +293,7 @@ services:
     restart: always
     volumes:
       - ./configs/apiserver-ha.yaml:/app/config.yaml
+      - ./logs/apiserver2:/app/logs
     depends_on:
       mysql:
         condition: service_healthy
@@ -343,40 +311,17 @@ services:
     networks:
       - lca-ha-net
 
-  logtransfer1:
+  logtransfer:
     build:
       context: .
       dockerfile: deploy/Dockerfile
       args:
         APP_NAME: logtransfer
-    container_name: lca-logtransfer1
+    container_name: lca-logtransfer
     restart: always
     volumes:
       - ./configs/logtransfer-ha.yaml:/app/config.yaml
-    depends_on:
-      mysql:
-        condition: service_healthy
-      es01:
-        condition: service_healthy
-    stop_grace_period: 15s
-    deploy:
-      resources:
-        limits:
-          memory: 512M
-          cpus: '1.0'
-    networks:
-      - lca-ha-net
-
-  logtransfer2:
-    build:
-      context: .
-      dockerfile: deploy/Dockerfile
-      args:
-        APP_NAME: logtransfer
-    container_name: lca-logtransfer2
-    restart: always
-    volumes:
-      - ./configs/logtransfer-ha.yaml:/app/config.yaml
+      - ./logs/logtransfer:/app/logs
     depends_on:
       mysql:
         condition: service_healthy
@@ -402,9 +347,9 @@ services:
     volumes:
       - ./deploy/ha/nginx-ha.conf:/etc/nginx/conf.d/default.conf
       - ./release/web-dist:/usr/share/nginx/html
+      - ./logs/nginx:/var/log/nginx
     depends_on:
-      - admin1
-      - admin2
+      - admin
       - apiserver1
       - apiserver2
     healthcheck:

@@ -133,6 +133,8 @@ services:
       - ./configs/rbac_model.conf:/app/configs/rbac_model.conf
       # 机器ID持久化（避免容器重启后机器ID变化导致授权码失效）
       - ./data/admin:/app/data
+      # 日志挂载到宿主机便于排查
+      - ./logs/admin:/app/logs
     environment:
       LCA_MACHINE_ID: "${LCA_MACHINE_ID:-}"
     depends_on:
@@ -168,6 +170,7 @@ services:
       - "${API_PORT:-8086}:8086"
     volumes:
       - ./configs/apiserver-docker.yaml:/app/config.yaml
+      - ./logs/apiserver:/app/logs
     depends_on:
       mysql:
         condition: service_healthy
@@ -197,6 +200,7 @@ services:
     restart: always
     volumes:
       - ./configs/logtransfer-docker.yaml:/app/config.yaml
+      - ./logs/logtransfer:/app/logs
     depends_on:
       mysql:
         condition: service_healthy
