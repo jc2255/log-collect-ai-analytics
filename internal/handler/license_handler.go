@@ -62,12 +62,14 @@ func (h *LicenseHandler) verifyRemotely(licenseKey, machineID string) (*remoteVe
 }
 
 // Status 获取当前授权状态
+// 重要：必须与 LicenseCheck 中间件判断逻辑一致（RSA 验签 + 机器ID对比），
+// 否则会出现“status 说已激活，其他接口返回 40301”的不一致，导致前端不弹授权框。
 func (h *LicenseHandler) Status(c *gin.Context) {
 	machineID := license.GetMachineID()
 
 	var lic model.License
-	err := h.DB.Where("status = ?", 1).First(&lic).Error
-
+	// 不加 status=1 过滤，取最新一条记录进行实际验签
+	err := h.DB.Order("id DESC").First(&lic).Error
 	if err != nil {
 		response.Success(c, gin.H{
 			"activated":  false,
@@ -76,15 +78,50 @@ func (h *LicenseHandler) Status(c *gin.Context) {
 		return
 	}
 
-	// 检查是否过期
-	if lic.ExpiresAt != nil && time.Now().After(*lic.ExpiresAt) {
-		h.DB.Model(&lic).Update("status", 2)
+	// 未配置验签器（本地验签降级不可用）时，仅依赖 status 字段作为兑底
+	if h.Checker == nil {
+		activated := lic.Status == 1
+		result := gin.H{
+			"activated":    activated,
+			"machine_id":   machineID,
+			"license_type": lic.LicenseType,
+			"bound_at":     lic.BoundAt,
+			"expires_at":   lic.ExpiresAt,
+		}
+		if !activated {
+			result["reason"] = "verifier disabled"
+		}
+		response.Success(c, result)
+		return
+	}
+
+	// RSA 验签 + 过期检查
+	verifyResult := h.Checker.Verify(lic.LicenseKey)
+	if !verifyResult.Valid {
+		reason := "signature invalid"
+		if verifyResult.IsExpired {
+			reason = "expired"
+		}
 		response.Success(c, gin.H{
 			"activated":    false,
 			"machine_id":   machineID,
-			"expired":      true,
+			"expired":      verifyResult.IsExpired,
+			"reason":       reason,
 			"license_type": lic.LicenseType,
 			"expires_at":   lic.ExpiresAt,
+		})
+		return
+	}
+
+	// 机器ID不匹配（客户迁移机器或容器重建后丢失机器ID文件后出现）
+	if verifyResult.Payload != nil && verifyResult.Payload.MachineID != machineID {
+		response.Success(c, gin.H{
+			"activated":     false,
+			"machine_id":    machineID,
+			"reason":        "machine id mismatch",
+			"bound_machine": verifyResult.Payload.MachineID,
+			"license_type":  lic.LicenseType,
+			"expires_at":    lic.ExpiresAt,
 		})
 		return
 	}
