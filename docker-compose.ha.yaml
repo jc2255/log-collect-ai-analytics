@@ -109,12 +109,24 @@ services:
     ports:
       - "26379:26379"
     volumes:
-      - ./deploy/ha/sentinel.conf:/etc/redis/sentinel.conf
-    command: redis-sentinel /etc/redis/sentinel.conf
+      - sentinel1_data:/data
+    command: >
+      sh -c "echo 'port 26379
+      sentinel monitor lca-master redis-master 6379 2
+      sentinel auth-pass lca-master $${REDIS_PASSWORD:-lca2024}
+      sentinel down-after-milliseconds lca-master 5000
+      sentinel failover-timeout lca-master 10000
+      sentinel parallel-syncs lca-master 1' > /tmp/sentinel.conf
+      && redis-sentinel /tmp/sentinel.conf"
     depends_on:
       - redis-master
       - redis-slave1
       - redis-slave2
+    healthcheck:
+      test: ["CMD", "redis-cli", "-p", "26379", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
     networks:
       - lca-ha-net
 
@@ -125,12 +137,24 @@ services:
     ports:
       - "26380:26379"
     volumes:
-      - ./deploy/ha/sentinel.conf:/etc/redis/sentinel.conf
-    command: redis-sentinel /etc/redis/sentinel.conf
+      - sentinel2_data:/data
+    command: >
+      sh -c "echo 'port 26379
+      sentinel monitor lca-master redis-master 6379 2
+      sentinel auth-pass lca-master $${REDIS_PASSWORD:-lca2024}
+      sentinel down-after-milliseconds lca-master 5000
+      sentinel failover-timeout lca-master 10000
+      sentinel parallel-syncs lca-master 1' > /tmp/sentinel.conf
+      && redis-sentinel /tmp/sentinel.conf"
     depends_on:
       - redis-master
       - redis-slave1
       - redis-slave2
+    healthcheck:
+      test: ["CMD", "redis-cli", "-p", "26379", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
     networks:
       - lca-ha-net
 
@@ -141,12 +165,24 @@ services:
     ports:
       - "26381:26379"
     volumes:
-      - ./deploy/ha/sentinel.conf:/etc/redis/sentinel.conf
-    command: redis-sentinel /etc/redis/sentinel.conf
+      - sentinel3_data:/data
+    command: >
+      sh -c "echo 'port 26379
+      sentinel monitor lca-master redis-master 6379 2
+      sentinel auth-pass lca-master $${REDIS_PASSWORD:-lca2024}
+      sentinel down-after-milliseconds lca-master 5000
+      sentinel failover-timeout lca-master 10000
+      sentinel parallel-syncs lca-master 1' > /tmp/sentinel.conf
+      && redis-sentinel /tmp/sentinel.conf"
     depends_on:
       - redis-master
       - redis-slave1
       - redis-slave2
+    healthcheck:
+      test: ["CMD", "redis-cli", "-p", "26379", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
     networks:
       - lca-ha-net
 
@@ -334,6 +370,12 @@ services:
         condition: service_healthy
       es01:
         condition: service_healthy
+      redis-sentinel1:
+        condition: service_healthy
+      redis-sentinel2:
+        condition: service_healthy
+      redis-sentinel3:
+        condition: service_healthy
     healthcheck:
       test: ["CMD-SHELL", "curl -f http://localhost:8080/health || exit 1"]
       interval: 15s
@@ -365,6 +407,12 @@ services:
       redis-master:
         condition: service_healthy
       es01:
+        condition: service_healthy
+      redis-sentinel1:
+        condition: service_healthy
+      redis-sentinel2:
+        condition: service_healthy
+      redis-sentinel3:
         condition: service_healthy
     healthcheck:
       test: ["CMD-SHELL", "curl -f http://localhost:8080/health || exit 1"]
@@ -513,6 +561,9 @@ volumes:
   redis_master_data:
   redis_slave1_data:
   redis_slave2_data:
+  sentinel1_data:
+  sentinel2_data:
+  sentinel3_data:
   kafka1_data:
   kafka2_data:
   kafka3_data:
