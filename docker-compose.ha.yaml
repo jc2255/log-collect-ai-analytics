@@ -109,15 +109,9 @@ services:
     ports:
       - "26379:26379"
     volumes:
+      - ./deploy/ha/sentinel1.conf:/etc/redis/sentinel.conf
       - sentinel1_data:/data
-    command: >
-      sh -c "echo 'port 26379
-      sentinel monitor lca-master redis-master 6379 2
-      sentinel auth-pass lca-master $${REDIS_PASSWORD:-lca2024}
-      sentinel down-after-milliseconds lca-master 5000
-      sentinel failover-timeout lca-master 10000
-      sentinel parallel-syncs lca-master 1' > /tmp/sentinel.conf
-      && redis-sentinel /tmp/sentinel.conf"
+    command: redis-sentinel /etc/redis/sentinel.conf
     depends_on:
       - redis-master
       - redis-slave1
@@ -137,15 +131,9 @@ services:
     ports:
       - "26380:26379"
     volumes:
+      - ./deploy/ha/sentinel2.conf:/etc/redis/sentinel.conf
       - sentinel2_data:/data
-    command: >
-      sh -c "echo 'port 26379
-      sentinel monitor lca-master redis-master 6379 2
-      sentinel auth-pass lca-master $${REDIS_PASSWORD:-lca2024}
-      sentinel down-after-milliseconds lca-master 5000
-      sentinel failover-timeout lca-master 10000
-      sentinel parallel-syncs lca-master 1' > /tmp/sentinel.conf
-      && redis-sentinel /tmp/sentinel.conf"
+    command: redis-sentinel /etc/redis/sentinel.conf
     depends_on:
       - redis-master
       - redis-slave1
@@ -165,15 +153,9 @@ services:
     ports:
       - "26381:26379"
     volumes:
+      - ./deploy/ha/sentinel3.conf:/etc/redis/sentinel.conf
       - sentinel3_data:/data
-    command: >
-      sh -c "echo 'port 26379
-      sentinel monitor lca-master redis-master 6379 2
-      sentinel auth-pass lca-master $${REDIS_PASSWORD:-lca2024}
-      sentinel down-after-milliseconds lca-master 5000
-      sentinel failover-timeout lca-master 10000
-      sentinel parallel-syncs lca-master 1' > /tmp/sentinel.conf
-      && redis-sentinel /tmp/sentinel.conf"
+    command: redis-sentinel /etc/redis/sentinel.conf
     depends_on:
       - redis-master
       - redis-slave1
