@@ -1,0 +1,7 @@
+[mysqld]
+server-id=2
+relay-log=mysql-relay-bin
+read-only=ON
+gtid-mode=ON
+enforce-gtid-consistency=ON
+log-slave-updates=ON

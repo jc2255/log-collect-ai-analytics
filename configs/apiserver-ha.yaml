@@ -1,0 +1,59 @@
+server:
+  name: "lca-apiserver"
+  port: 8086
+  mode: "release"
+
+mysql:
+  host: "mysql-master"
+  port: 3306
+  user: "root"
+  password: "lca2024"
+  dbname: "lca"
+  max_open_conns: 50
+  max_idle_conns: 10
+  read_host: "mysql-slave"
+  read_port: 3306
+
+redis:
+  host: "redis-master"
+  port: 6379
+  password: "lca2024"
+  db: 0
+  pool_size: 20
+  max_retries: 3
+  mode: "sentinel"
+  master_name: "lca-master"
+  sentinel_addrs:
+    - "redis-sentinel1:26379"
+    - "redis-sentinel2:26379"
+    - "redis-sentinel3:26379"
+
+kafka:
+  brokers:
+    - "kafka1:9092"
+    - "kafka2:9092"
+    - "kafka3:9092"
+  group_id: "lca-apiserver"
+  topic: "lca-log"
+
+elasticsearch:
+  addresses:
+    - "http://es01:9200"
+    - "http://es02:9200"
+    - "http://es03:9200"
+  username: ""
+  password: ""
+  sniff: false
+
+jwt:
+  secret: "lca-secret-key-change-in-production"
+  expire_hour: 24
+  issuer: "lca-apiserver"
+
+log:
+  level: "info"
+  filename: ""
+  max_size: 100
+  max_backups: 5
+  max_age: 30
+  compress: false

@@ -24,7 +24,8 @@
 - [技术栈](#技术栈)
 - [快速部署](#快速部署)
   - [方式一：Docker Compose（推荐）](#方式一docker-compose推荐)
-  - [方式二：手动部署](#方式二手动部署)
+  - [方式二：Docker Compose 高可用部署（推荐生产环境）](#方式二docker-compose-高可用部署推荐生产环境)
+  - [方式三：手动部署](#方式三手动部署)
 - [各服务启动说明](#各服务启动说明)
 - [配置文件详解](#配置文件详解)
 - [Agent 部署](#agent-部署)
@@ -155,7 +156,58 @@ docker compose logs -f apiserver
 
 ---
 
-### 方式二：手动部署
+### 方式二：Docker Compose 高可用部署（推荐生产环境）
+
+多实例 + 自动故障转移 + 数据多副本冗余，为关键业务保驾护航。
+
+```bash
+# 1. 克隆代码
+git clone https://github.com/jc2255/log-collect-ai-analytics.git
+cd log-collect-ai-analytics
+
+# 2. 复制并编辑环境变量
+cp .env.example .env
+vim .env
+
+# 3. 启动 HA 集群
+docker compose -f docker-compose.ha.yaml up -d
+
+# 4. 初始化基础设施（MySQL 主从复制、ES 备份仓库等）
+./scripts/init-ha.sh
+
+# 5. 查看服务状态
+docker compose -f docker-compose.ha.yaml ps
+```
+
+#### HA 架构详情
+
+| 层级 | 能力 | 实现方式 |
+|------|------|----------|
+| **Redis** | 自动故障转移 | Sentinel 1主2从3哨兵 |
+| **分布式锁** | 任务互斥执行 | Redis SETNX + Lua 原子释放 |
+| **Leader Election** | 定时任务单点执行 | 续约式锁，失败自动降级 standby |
+| **Casbin 同步** | 多实例策略一致性 | Redis Pub/Sub 通知重载 |
+| **MySQL** | 读写分离 | 主库写 + 从库读，GTID 主从复制 |
+| **Kafka** | 数据多副本 | 3 Broker，`replication.factor=3` |
+| **Elasticsearch** | 数据冗余 | 3 节点集群 + 1 副本分片 |
+| **Nginx** | 负载均衡 | upstream 轮询 + 健康检查 + 故障转发 |
+| **应用层** | 水平扩展 | admin×2, apiserver×2, logtransfer×2 |
+
+#### HA 配置文件
+
+| 文件 | 说明 |
+|------|------|
+| `configs/admin-ha.yaml` | admin 服务 HA 配置（Sentinel + 读副本） |
+| `configs/apiserver-ha.yaml` | apiserver 服务 HA 配置 |
+| `configs/logtransfer-ha.yaml` | logtransfer 服务 HA 配置 |
+| `deploy/ha/nginx-ha.conf` | Nginx 负载均衡配置 |
+| `deploy/ha/sentinel.conf` | Redis Sentinel 配置 |
+| `deploy/ha/mysql-master.cnf` | MySQL 主库配置 |
+| `deploy/ha/mysql-slave.cnf` | MySQL 从库配置 |
+
+---
+
+### 方式三：手动部署
 
 适合已有 MySQL / Redis / Kafka / ES 基础设施的环境。
 
@@ -719,7 +771,12 @@ log-collect-ai-analytics/
 ├── deploy/                     # Docker 构建文件
 │   ├── Dockerfile              # 后端镜像
 │   ├── Dockerfile.web          # 前端镜像
-│   └── nginx.conf              # Nginx 反向代理配置
+│   ├── nginx.conf              # Nginx 反向代理配置
+│   └── ha/                     # 高可用部署配置
+│       ├── nginx-ha.conf       # Nginx 负载均衡配置
+│       ├── sentinel.conf       # Redis Sentinel 配置
+│       ├── mysql-master.cnf    # MySQL 主库配置
+│       └── mysql-slave.cnf     # MySQL 从库配置
 ├── internal/
 │   ├── handler/                # HTTP 处理器（各业务模块）
 │   ├── middleware/             # 中间件（JWT / RBAC / License / 审计日志）
@@ -733,7 +790,7 @@ log-collect-ai-analytics/
 │       └── agent_offline_notifier.go   # Agent 离线检测 & 邮件通知
 ├── keys/                       # RSA 公钥（私钥不入库！）
 ├── scripts/
-│   ├── gen_test_logs.sh        # 测试日志生成脚本（含各语言格式）
+│   ├── init-ha.sh             # HA 基础设施初始化脚本
 │   └── start.sh                # 一键启动脚本
 ├── web/                        # Vue 3 前端工程
 │   ├── src/
@@ -747,12 +804,21 @@ log-collect-ai-analytics/
 │   │   │   └── dashboard/      # 首页统计
 │   │   └── layouts/            # 主布局
 │   └── dist/                   # 构建产物（由 admin 服务托管）
-└── docker-compose.yaml
+├── docker-compose.yaml         # 单机部署编排
+└── docker-compose.ha.yaml      # 高可用部署编排
 ```
 
 ---
 
 ## 更新日志
+
+### v1.3.0
+- 新增高可用（HA）部署模式：Redis Sentinel 自动故障转移、MySQL 主从读写分离、Kafka 3 Broker 集群、ES 3 节点集群
+- 新增分布式锁（Redis SETNX + Lua），保障多实例下定时任务互斥执行
+- 新增 Leader Election 机制，AI 告警调度器、Agent 离线检测自动主备切换
+- 新增 Casbin 策略多实例同步（Redis Pub/Sub），权限变更实时生效
+- 新增 Nginx 负载均衡配置，upstream 健康检查 + 故障自动转发
+- 新增一键 HA 初始化脚本（`scripts/init-ha.sh`）
 
 ### v1.2.0
 - 新增「告警历史」列表页，统一展示 AI 告警 + Agent 离线告警记录

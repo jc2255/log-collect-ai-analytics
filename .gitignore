@@ -13,6 +13,7 @@
 /apiserver
 /logtransfer
 /logcollect_agent
+/logcollect
 /syslog_server
 
 # 依赖
@@ -49,3 +50,6 @@ keys/*.p12
 
 # 测试日志
 /tmp/lca-test-logs/
+
+# 产品文档（仅本地保留）
+/docs/
