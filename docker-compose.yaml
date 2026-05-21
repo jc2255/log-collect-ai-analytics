@@ -130,7 +130,7 @@ services:
       - "${ADMIN_PORT:-8080}:8080"
     volumes:
       - ./configs/admin-docker.yaml:/app/config.yaml
-      - ./configs/rbac_model.conf:/app/rbac_model.conf
+      - ./configs/rbac_model.conf:/app/configs/rbac_model.conf
     depends_on:
       mysql:
         condition: service_healthy

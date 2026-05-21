@@ -365,7 +365,7 @@ services:
     restart: always
     volumes:
       - ./configs/admin-ha.yaml:/app/config.yaml
-      - ./configs/rbac_model.conf:/app/rbac_model.conf
+      - ./configs/rbac_model.conf:/app/configs/rbac_model.conf
     depends_on:
       mysql-master:
         condition: service_healthy
@@ -403,7 +403,7 @@ services:
     restart: always
     volumes:
       - ./configs/admin-ha.yaml:/app/config.yaml
-      - ./configs/rbac_model.conf:/app/rbac_model.conf
+      - ./configs/rbac_model.conf:/app/configs/rbac_model.conf
     depends_on:
       mysql-master:
         condition: service_healthy
