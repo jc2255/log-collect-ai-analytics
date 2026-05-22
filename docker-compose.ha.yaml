@@ -273,6 +273,8 @@ services:
         APP_NAME: apiserver
     container_name: lca-apiserver1
     restart: always
+    environment:
+      - TZ=Asia/Shanghai
     volumes:
       - ./configs/apiserver-ha.yaml:/app/config.yaml
       - ./logs/apiserver1:/app/logs
@@ -288,8 +290,8 @@ services:
     deploy:
       resources:
         limits:
-          memory: 256M
-          cpus: '0.5'
+          memory: 1024M
+          cpus: '1.0'
     networks:
       - lca-ha-net
 
@@ -301,6 +303,8 @@ services:
         APP_NAME: apiserver
     container_name: lca-apiserver2
     restart: always
+    environment:
+      - TZ=Asia/Shanghai
     volumes:
       - ./configs/apiserver-ha.yaml:/app/config.yaml
       - ./logs/apiserver2:/app/logs
@@ -316,8 +320,8 @@ services:
     deploy:
       resources:
         limits:
-          memory: 256M
-          cpus: '0.5'
+          memory: 1024M
+          cpus: '1.0'
     networks:
       - lca-ha-net
 
@@ -352,6 +356,8 @@ services:
     image: docker.m.daocloud.io/library/nginx:1.25-alpine
     container_name: lca-nginx-ha
     restart: always
+    environment:
+      - TZ=Asia/Shanghai
     ports:
       - "80:80"
     volumes:
