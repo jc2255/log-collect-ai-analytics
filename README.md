@@ -56,6 +56,52 @@
 
 ---
 
+## 系统预览
+
+### 首页 Dashboard
+
+实时展示日志库数量、日志总量、告警数量、今日采集量；柱状图 + 环形图双视角呈现各日志库文档分布，采集速率以「条/分」精准到分钟。
+
+![首页 Dashboard](images/screenshot-01.png)
+
+### 日志查询（类 Kibana Discover）
+
+时间直方图 + 可用字段面板 + KQL/Lucene 全文检索，支持快捷时间范围（1m / 5m / 15m / 1h / 4h / 24h / 7d / 30d）与自定义区间。
+
+![日志查询](images/screenshot-02.png)
+
+### 告警历史
+
+统一展示 AI 告警与 Agent 离线告警记录，支持按日志库 / 严重程度过滤，一键查看「诊断报告」或「原始日志」。
+
+![告警历史](images/screenshot-03.png)
+
+### AI 智能诊断报告
+
+大模型深度分析后给出「异常摘要 / 根因分析 / 修复步骤」三段式诊断，步骤内联合可运行命令片段，定位问题不再靠猜。
+
+![AI 诊断报告](images/screenshot-04.png)
+
+### 备份策略
+
+可视化配置 ES 快照 SLM 策略：执行频率 / 保留天数 / 最少最多快照数 / OSS 仓库，自动备份至阿里云 OSS。
+
+![备份策略](images/screenshot-05.png)
+
+### Agent 管理
+
+实时心跳状态跟踪，在线 / 离线一目了然，超时自动标记并邮件告警。
+
+![Agent 管理](images/screenshot-06.png)
+
+### 采集任务管理
+
+为指定 Agent 动态下发采集任务：目标日志库 + Glob 路径 + 解析模式（raw / json / regex / delimiter），60 秒动态生效无需重启。
+
+![采集任务](images/screenshot-07.png)
+
+---
+
 ## 系统架构
 
 ```
