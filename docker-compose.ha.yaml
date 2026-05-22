@@ -77,6 +77,10 @@ services:
       KAFKA_NUM_PARTITIONS: 6
       KAFKA_COMPRESSION_TYPE: lz4
       KAFKA_AUTO_CREATE_TOPICS_ENABLE: "true"
+      # 内部 __consumer_offsets / 事务元数据 topic 副本数，与 min.insync.replicas=2 匹配，避免 coordinator 不可用
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 3
+      KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 3
+      KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 2
     volumes:
       - kafka1_data:/kafka
     depends_on:
@@ -100,6 +104,9 @@ services:
       KAFKA_NUM_PARTITIONS: 6
       KAFKA_COMPRESSION_TYPE: lz4
       KAFKA_AUTO_CREATE_TOPICS_ENABLE: "true"
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 3
+      KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 3
+      KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 2
     volumes:
       - kafka2_data:/kafka
     depends_on:
@@ -123,6 +130,9 @@ services:
       KAFKA_NUM_PARTITIONS: 6
       KAFKA_COMPRESSION_TYPE: lz4
       KAFKA_AUTO_CREATE_TOPICS_ENABLE: "true"
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 3
+      KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 3
+      KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 2
     volumes:
       - kafka3_data:/kafka
     depends_on:
