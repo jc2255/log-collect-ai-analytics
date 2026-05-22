@@ -33,6 +33,7 @@
 - [AI 智能告警](#ai-智能告警)
 - [授权码](#授权码)
 - [项目结构](#项目结构)
+- [故障排查](#故障排查)
 - [更新日志](#更新日志)
 
 ---
@@ -475,6 +476,7 @@ Agent 每 **60 秒**自动从 admin 拉取最新任务，无需重启即可生�
 ```
 POST http://your-apiserver:8086/api/v1/log/push
 Content-Type: application/json
+X-Trace-Id: <16位 hex>      // 可选，不传服务端会自动生成
 
 {
   "api_key": "ak_your_logstore_xxx",  // 日志库的 API Key（必填）
@@ -485,10 +487,25 @@ Content-Type: application/json
 }
 ```
 
+**响应体：**
+```json
+{
+  "code": 0,
+  "message": "success",
+  "data": {
+    "count": 1,
+    "trace_id": "7eae7b75176463bd"   // 全链路追踪 ID，后续问题定位仅需提供该 ID
+  }
+}
+```
+
+响应 Header 也会携带 `X-Trace-Id`；同一条日志在 apiserver / Kafka / logtransfer / ES 中均可通过该 ID 串联。
+
 每条日志可以是任意 JSON 对象，系统会自动附加以下字段：
 - `_timestamp`：Unix 毫秒时间戳
 - `_source_ip`：推送方 IP
 - `_store_name`：日志库名称
+- `_trace_id`：全链路追踪 ID（便于事后 ES 检索）
 
 ---
 
@@ -810,7 +827,73 @@ log-collect-ai-analytics/
 
 ---
 
+## 故障排查
+
+### 使用 trace_id 定位问题（推荐）
+
+所有走 `/api/v1/log/push` 的请求会获得一个全链路 `trace_id`，同一条日志在 4 个组件中均可以该 ID 串联。出问题时，只需拿到 trace_id 后依次类似以下检索：
+
+```bash
+TRACE=<响应中返回的 trace_id>
+
+# 1) apiserver 是否接收并写入 Kafka
+docker logs lca-apiserver1 lca-apiserver2 2>&1 | grep "trace=$TRACE"
+# 期望：recv push → api_key OK → kafka write OK
+
+# 2) logtransfer 是否从 Kafka 拉到并写入 ES
+docker logs lca-logtransfer 2>&1 | grep "trace=$TRACE"
+# 期望：fetch → flush start → flush OK
+
+# 3) ES 是否落库（索引名以 logtransfer “flush OK” 日志中输出为准）
+curl -sS "http://localhost:9200/<真实索引名>/_search?q=_trace_id:$TRACE&pretty"
+```
+
+**进一步按初步表现决定排查方向：**
+
+| 初步表现 | 可能原因 |
+|---|---|
+| apiserver 不出 trace 日志 | nginx 未调到该 apiserver / agent 未推到服务端 |
+| apiserver 有、logtransfer 无 | Kafka topic / partition 未分配、consumer group 未 join（查 `kafka-consumer-groups.sh --describe`） |
+| logtransfer 出 fetch 但无 flush OK | ES 连接问题、index 写入被拒 |
+| logtransfer flush OK 但 ES 查不到 | 查询索引名拼错（以“`flush OK index=...`”日志为准） |
+
+### Kafka HA 集群 `Group Coordinator Not Available`
+
+现象：consumer 反复报 `[15] Group Coordinator Not Available`，`__consumer_offsets` 不存在。
+
+原因：Kafka 默认 `offsets.topic.replication.factor=1`，与 `min.insync.replicas=2` 冲突，`__consumer_offsets` 创建后不可写。
+
+修复：`docker-compose.ha.yaml` 中 3 个 Kafka broker 均需加上：
+
+```yaml
+KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 3
+KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 3
+KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 2
+```
+
+修改后 `docker compose -f docker-compose.ha.yaml up -d --force-recreate kafka1 kafka2 kafka3`。
+
+### 镜像代码不生效
+
+`deploy/Dockerfile` 采用 `COPY release/bin/${APP_NAME} ./server`，**二进制嵌入镜像**。重新编译后必须：
+
+```bash
+docker compose -f docker-compose.ha.yaml build --no-cache <service>
+docker compose -f docker-compose.ha.yaml up -d --force-recreate <service>
+```
+
+单纯 `up -d --force-recreate` **不会**重新打包镜像。
+
+---
+
 ## 更新日志
+
+### v1.3.1
+- 新增**全链路 trace_id 追踪**：agent → apiserver → Kafka → logtransfer → ES 同一条日志共享一个 `X-Trace-Id`，后续问题定位只需提供该 ID
+- HTTP 响应体 / Header / Kafka Header / ES `_trace_id` 字段多点透传
+- 修复 Kafka HA 集群 `__consumer_offsets` 创建失败问题（`OFFSETS_TOPIC_REPLICATION_FACTOR` 与 `MIN_INSYNC_REPLICAS` 匹配）
+- kafka-go Reader 统一接入 ErrorLogger，group join / sync 错误不再静默吃掉
+- logtransfer flush 日志从 debug 升为 info，默认可见
 
 ### v1.3.0
 - 新增高可用（HA）部署模式：Redis Sentinel 自动故障转移、MySQL 主从读写分离、Kafka 3 Broker 集群、ES 3 节点集群
