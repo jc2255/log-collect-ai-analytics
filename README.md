@@ -186,13 +186,10 @@ vim .env
 # 3. 启动 HA 集群
 docker compose -f docker-compose.ha.yaml up -d
 
-# 4. 初始化基础设施（MySQL 主从复制、ES 备份仓库等）
-./scripts/init-ha.sh
-
-# 5. 查看服务状态
+# 4. 查看服务状态
 docker compose -f docker-compose.ha.yaml ps
 
-# 6. 查看服务日志
+# 5. 查看服务日志
 docker compose -f docker-compose.ha.yaml logs -f admin1
 docker compose -f docker-compose.ha.yaml logs -f apiserver1
 ```
