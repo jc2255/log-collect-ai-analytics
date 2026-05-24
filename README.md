@@ -23,9 +23,8 @@
 - [系统架构](#系统架构)
 - [技术栈](#技术栈)
 - [快速部署](#快速部署)
-  - [方式一：Docker Compose（推荐）](#方式一docker-compose推荐生产环境)
-  - [方式二：Docker Compose 高可用部署（日志量大推荐生产环境）](#方式二docker-compose-高可用部署推荐生产环境)
-  - [方式三：手动部署](#方式三手动部署)
+  - [方式一：Docker Compose 高可用部署（推荐生产环境）](#方式一docker-compose-高可用部署推荐生产环境)
+  - [方式二：手动部署](#方式二手动部署)
 - [各服务启动说明](#各服务启动说明)
 - [配置文件详解](#配置文件详解)
 - [Agent 部署](#agent-部署)
@@ -171,9 +170,9 @@
 
 ---
 
-### 方式一：Docker Compose（推荐）
+### 方式一：Docker Compose 高可用部署（推荐生产环境）
 
-Docker Compose 会一键启动 MySQL、Redis、Kafka、Elasticsearch、所有后端服务及 Nginx。
+多实例 + 自动故障转移 + 数据多副本冗余，一键启动 MySQL 主从、Redis Sentinel、Kafka 3 Broker、Elasticsearch 3 节点集群、所有后端服务（admin×2、apiserver×2、logtransfer×2）及 Nginx 负载均衡。
 
 ```bash
 # 1. 克隆代码
@@ -181,38 +180,6 @@ git clone https://github.com/jc2255/log-collect-ai-analytics.git
 cd log-collect-ai-analytics
 
 # 2. 复制并编辑环境变量（修改数据库密码、JWT Secret 等）
-cp .env.example .env
-vim .env
-
-# 3. 启动全部服务
-docker compose up -d
-
-# 4. 查看服务状态
-docker compose ps
-
-# 5. 查看服务日志
-docker compose logs -f admin
-docker compose logs -f apiserver
-```
-
-启动完成后访问：**http://your-server-ip**
-
-默认账号：`admin`  默认密码：`admin123`
-
-> ⚠️ 首次使用需在「系统设置 → 授权管理」页面激活授权码
-
----
-
-### 方式二：Docker Compose 高可用部署（推荐生产环境）
-
-多实例 + 自动故障转移 + 数据多副本冗余，为关键业务保驾护航。
-
-```bash
-# 1. 克隆代码
-git clone https://github.com/jc2255/log-collect-ai-analytics.git
-cd log-collect-ai-analytics
-
-# 2. 复制并编辑环境变量
 cp .env.example .env
 vim .env
 
@@ -224,7 +191,17 @@ docker compose -f docker-compose.ha.yaml up -d
 
 # 5. 查看服务状态
 docker compose -f docker-compose.ha.yaml ps
+
+# 6. 查看服务日志
+docker compose -f docker-compose.ha.yaml logs -f admin1
+docker compose -f docker-compose.ha.yaml logs -f apiserver1
 ```
+
+启动完成后访问：**http://your-server-ip**
+
+默认账号：`admin`  默认密码：`admin123`
+
+> ⚠️ 首次使用需在「系统设置 → 授权管理」页面激活授权码
 
 #### HA 架构详情
 
@@ -254,7 +231,7 @@ docker compose -f docker-compose.ha.yaml ps
 
 ---
 
-### 方式三：手动部署
+### 方式二：手动部署
 
 适合已有 MySQL / Redis / Kafka / ES 基础设施的环境。
 
@@ -439,8 +416,8 @@ server:
 ### configs/logcollect.yaml（Agent 配置）
 
 ```yaml
-api_server: "http://your-apiserver:8086"   # apiserver 地址
-admin_server: "http://your-admin:8080"     # admin 地址，用于拉取采集任务
+api_server: "http://your-apiserver"   # apiserver 地址
+admin_server: "http://your-admin"     # admin 地址，用于拉取采集任务
 api_key: "ak_your_logstore_xxx"            # 日志库的 API Key（在日志库页面查看）
 agent_id: "server-prod-001"               # 当前机器的唯一标识
 batch_size: 50                             # 批量发送条数
@@ -867,7 +844,6 @@ log-collect-ai-analytics/
 │   │   │   └── dashboard/      # 首页统计
 │   │   └── layouts/            # 主布局
 │   └── dist/                   # 构建产物（由 admin 服务托管）
-├── docker-compose.yaml         # 单机部署编排
 └── docker-compose.ha.yaml      # 高可用部署编排
 ```
 
