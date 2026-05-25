@@ -23,7 +23,7 @@
         </div>
         <div class="detail-row" v-if="expiresAt">
           <span class="label">到期时间：</span>
-          <span class="value">{{ expiresAt }}</span>
+          <span class="value">{{ formattedExpiresAt }}</span>
         </div>
         <div class="detail-row" v-else>
           <span class="label">到期时间：</span>
@@ -31,7 +31,7 @@
         </div>
         <div class="detail-row">
           <span class="label">绑定时间：</span>
-          <span class="value">{{ boundAt }}</span>
+          <span class="value">{{ formattedBoundAt }}</span>
         </div>
         <div class="machine-id-row">
           <span class="label">当前机器ID：</span>
@@ -108,6 +108,7 @@ const props = defineProps<{
 const emit = defineEmits<{
   (e: 'activated'): void
   (e: 'deactivated'): void
+  (e: 'close'): void
 }>()
 
 const visible = ref(true)
@@ -123,6 +124,18 @@ const activated = ref(false)
 const licenseType = ref('')
 const expiresAt = ref('')
 const boundAt = ref('')
+
+// 格式化 ISO 时间为可读格式（如 2026-06-20 15:42:52）
+function formatTime(iso: string): string {
+  if (!iso) return ''
+  const d = new Date(iso)
+  if (isNaN(d.getTime())) return iso // 无法解析则原样返回
+  const pad = (n: number) => n.toString().padStart(2, '0')
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`
+}
+
+const formattedExpiresAt = computed(() => formatTime(expiresAt.value))
+const formattedBoundAt = computed(() => formatTime(boundAt.value))
 
 const licenseTypeText = computed(() => {
   const map: Record<string, string> = { monthly: '月付授权', yearly: '年付授权', permanent: '永久授权' }
@@ -242,6 +255,7 @@ async function handleDeactivate() {
 
 function handleClose() {
   visible.value = false
+  emit('close')
 }
 
 function handleLogout() {
