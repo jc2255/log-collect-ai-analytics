@@ -451,6 +451,29 @@ CREATE TABLE IF NOT EXISTS `users` (
   KEY `idx_users_deleted_at` (`deleted_at`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
+CREATE TABLE IF NOT EXISTS `ai_conversations` (
+  `id` bigint unsigned NOT NULL AUTO_INCREMENT,
+  `created_at` datetime(3) DEFAULT NULL,
+  `updated_at` datetime(3) DEFAULT NULL,
+  `user_id` bigint unsigned NOT NULL,
+  `title` varchar(200) COLLATE utf8mb4_unicode_ci DEFAULT NULL COMMENT '会话标题(自动生成)',
+  PRIMARY KEY (`id`),
+  KEY `idx_ai_conv_user` (`user_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS `ai_messages` (
+  `id` bigint unsigned NOT NULL AUTO_INCREMENT,
+  `created_at` datetime(3) DEFAULT NULL,
+  `conversation_id` bigint unsigned NOT NULL,
+  `role` varchar(20) COLLATE utf8mb4_unicode_ci NOT NULL COMMENT 'user/assistant/tool',
+  `content` longtext COLLATE utf8mb4_unicode_ci COMMENT '消息内容',
+  `tool_calls` text COLLATE utf8mb4_unicode_ci COMMENT 'function calling JSON',
+  `tool_name` varchar(50) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `export_data` longtext COLLATE utf8mb4_unicode_ci COMMENT '可导出的结构化数据JSON',
+  PRIMARY KEY (`id`),
+  KEY `idx_ai_msg_conv` (`conversation_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
 -- =====================================================================
 -- 种子数据（INSERT IGNORE 保证幂等，重复执行不报错）
 -- =====================================================================
@@ -501,7 +524,10 @@ INSERT IGNORE INTO `menus` (`id`,`created_at`,`updated_at`,`deleted_at`,`parent_
 (52,NOW(),NOW(),NULL,5,'备份策略','/backup/policies','','SetUp',2,1,'C',1,'backup:policy:list',''),
 -- 日志采集子菜单
 (61,NOW(),NOW(),NULL,6,'采集任务','/collect/tasks','','Position',1,1,'C',1,'collect:task:list',''),
-(62,NOW(),NOW(),NULL,6,'Agent管理','/collect/agents','','Monitor',2,1,'C',1,'collect:agent:list','');
+(62,NOW(),NOW(),NULL,6,'Agent管理','/collect/agents','','Monitor',2,1,'C',1,'collect:agent:list',''),
+-- AI智能体
+(7, NOW(),NOW(),NULL,0,'AI智能体','/ai','','MagicStick',7,1,'M',1,'',''),
+(71,NOW(),NOW(),NULL,7,'AI对话','/ai/agent','','ChatDotRound',1,1,'C',1,'ai:agent:use','');
 
 -- 角色
 INSERT IGNORE INTO `roles` (`id`,`created_at`,`updated_at`,`deleted_at`,`name`,`code`,`description`,`sort`,`status`) VALUES
@@ -526,14 +552,15 @@ INSERT IGNORE INTO `user_roles` (`user_id`,`role_id`) VALUES
 -- 角色-菜单关联（管理员拥有全部菜单）
 INSERT IGNORE INTO `role_menus` (`role_id`,`menu_id`) VALUES
 -- 管理员：全部
-(1,1),(1,2),(1,3),(1,4),(1,5),(1,6),
+(1,1),(1,2),(1,3),(1,4),(1,5),(1,6),(1,7),
 (1,21),(1,22),(1,23),(1,24),(1,25),
 (1,32),(1,33),(1,34),
 (1,41),(1,42),(1,44),
 (1,51),(1,52),
 (1,61),(1,62),
--- 运维：日志+备份+采集
-(2,4),(2,5),(2,6),(2,41),(2,42),(2,44),(2,51),(2,52),(2,61),(2,62),
+(1,71),
+-- 运维：日志+备份+采集+AI
+(2,4),(2,5),(2,6),(2,7),(2,41),(2,42),(2,44),(2,51),(2,52),(2,61),(2,62),(2,71),
 -- 开发：日志查询+告警历史
 (3,42),(3,44),
 -- 测试：日志查询
