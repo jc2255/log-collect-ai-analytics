@@ -107,10 +107,15 @@ func validateActiveLicense() (bool, string) {
 	}
 
 	var lic model.License
-	// 注意：故意不加 status=1 条件，取最新的一条 license_key 实际验签
-	// 这样客户即使把 status 改成 0/2 也不影响（验签为准）
+	// 取最新一条记录
 	if err := licenseDB.Order("id DESC").First(&lic).Error; err != nil {
 		return false, "no license record"
+	}
+
+	// ── status=0 表示用户主动解绑，直接拒绝 ────────────────
+	// 与"客户篡改 DB 绕过"场景不同：解绑是合法操作，中间件必须尊重
+	if lic.Status == 0 {
+		return false, "license deactivated"
 	}
 
 	currentMachineID := license.GetMachineID()
