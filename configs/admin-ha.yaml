@@ -65,3 +65,10 @@ license:
     s85ZNjXpGHQlD5Ve1N7md9G/LhvOriU9i45E34hq8WpJtfycOWL+dmwFfyVGLfkX
     fwIDAQAB
     -----END PUBLIC KEY-----
+ai:
+  provider: "deepseek"
+  api_key: "sk-XXX"
+  base_url: "https://api.deepseek.com"
+  model: "deepseek-v4-flash"
+  max_tokens: 40960
+  temperature: 0.3
