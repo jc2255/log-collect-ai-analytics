@@ -68,9 +68,18 @@ func (h *LicenseHandler) Status(c *gin.Context) {
 	machineID := license.GetMachineID()
 
 	var lic model.License
-	// 不加 status=1 过滤，取最新一条记录进行实际验签
+	// 取最新一条记录
 	err := h.DB.Order("id DESC").First(&lic).Error
 	if err != nil {
+		response.Success(c, gin.H{
+			"activated":  false,
+			"machine_id": machineID,
+		})
+		return
+	}
+
+	// status=0 表示用户已主动解绑，直接返回未激活
+	if lic.Status == 0 {
 		response.Success(c, gin.H{
 			"activated":  false,
 			"machine_id": machineID,
