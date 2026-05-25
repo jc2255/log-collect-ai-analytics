@@ -1,6 +1,5 @@
 api_server: "http://127.0.0.1:8086"
 admin_server: "http://127.0.0.1:8080"
-api_key: "ak_nginx_001"
 agent_id: "agent-001"
 batch_size: 50
 flush_seconds: 5

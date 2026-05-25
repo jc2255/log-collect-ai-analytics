@@ -44,6 +44,8 @@ log:
   max_age: 30
   compress: true
 
+lca_top_url: "https://lca.top"
+
 license:
   public_key: |
     -----BEGIN PUBLIC KEY-----
@@ -58,8 +60,8 @@ license:
 
 ai:
   provider: "deepseek"
-  api_key: ""
+  api_key: "sk-fccf66eb54164c22adbb4f831eeab9eb"
   base_url: "https://api.deepseek.com"
-  model: "deepseek-chat"
-  max_tokens: 4096
+  model: "deepseek-v4-flash"
+  max_tokens: 40960
   temperature: 0.3

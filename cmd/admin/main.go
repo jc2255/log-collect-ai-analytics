@@ -154,6 +154,7 @@ func main() {
 	collectHandler := handler.NewCollectHandler(db)
 	aiAlertHandler := handler.NewAIAlertHandler(db, esClient)
 	licenseHandler := handler.NewLicenseHandler(db, licenseVerifier, cfg.LCATopURL)
+	aiAgentHandler := handler.NewAIAgentHandler(db, esClient, &cfg.AI)
 
 	// 9. 设置路由
 	mode := cfg.Server.Mode
@@ -293,6 +294,13 @@ func main() {
 		// Agent管理
 		authWithLicense.GET("/agents", collectHandler.ListAgents)
 		authWithLicense.DELETE("/agents/:id", collectHandler.DeleteAgent)
+
+		// AI 智能体
+		authWithLicense.POST("/ai-agent/chat", aiAgentHandler.Chat)
+		authWithLicense.GET("/ai-agent/conversations", aiAgentHandler.ListConversations)
+		authWithLicense.GET("/ai-agent/conversations/:id", aiAgentHandler.GetConversation)
+		authWithLicense.DELETE("/ai-agent/conversations/:id", aiAgentHandler.DeleteConversation)
+		authWithLicense.GET("/ai-agent/export/:id", aiAgentHandler.ExportCSV)
 	}
 
 	// 10. 初始化默认数据
@@ -556,6 +564,28 @@ func initDefaultData(db *gorm.DB) {
 		}
 		for i := range stores {
 			db.Create(&stores[i])
+		}
+	}
+
+	// === 增量菜单迁移：确保 AI智能体 菜单存在 ===
+	var aiMenuCount int64
+	db.Model(&model.Menu{}).Where("id = ?", 7).Count(&aiMenuCount)
+	if aiMenuCount == 0 {
+		aiMenus := []model.Menu{
+			{BaseModel: model.BaseModel{ID: 7}, ParentID: 0, Name: "AI智能体", Path: "/ai", Icon: "MagicStick", Sort: 7, MenuType: "M", Visible: 1, Status: 1},
+			{BaseModel: model.BaseModel{ID: 71}, ParentID: 7, Name: "AI对话", Path: "/ai/agent", Icon: "ChatDotRound", Sort: 1, MenuType: "C", Visible: 1, Status: 1, Perms: "ai:agent:use"},
+		}
+		for i := range aiMenus {
+			db.Create(&aiMenus[i])
+		}
+		// 追加到管理员和运维角色
+		var adminRole model.Role
+		if err := db.Preload("Menus").First(&adminRole, 1).Error; err == nil {
+			db.Model(&adminRole).Association("Menus").Append(aiMenus)
+		}
+		var opsRole model.Role
+		if err := db.Preload("Menus").First(&opsRole, 2).Error; err == nil {
+			db.Model(&opsRole).Association("Menus").Append(aiMenus)
 		}
 	}
 }
