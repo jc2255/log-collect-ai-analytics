@@ -224,11 +224,17 @@ localVerify:
 
 // saveAndRespond 保存授权码记录并返回成功响应
 func (h *LicenseHandler) saveAndRespond(c *gin.Context, licenseKey, machineID, licenseType string, expiresAtUnix int64) {
-	// 检查是否已有有效授权
+	// 检查是否已有「真正有效」的授权（status=1 且未过期）
+	// 过期授权不再阻塞激活，直接覆盖
 	var existing model.License
 	if err := h.DB.Where("status = ?", 1).First(&existing).Error; err == nil {
-		response.Error(c, response.ErrorCode, "已有有效授权码，请先解绑")
-		return
+		if existing.ExpiresAt == nil || existing.ExpiresAt.After(time.Now()) {
+			// 永久授权（ExpiresAt==nil）或尚未过期 → 拒绝重复激活
+			response.Error(c, response.ErrorCode, "已有有效授权码，请先解绑")
+			return
+		}
+		// 已过期 → 将旧记录标记为过期，允许激活新的
+		h.DB.Model(&existing).Update("status", 2)
 	}
 
 	now := time.Now()

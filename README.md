@@ -437,8 +437,8 @@ mkdir -p /opt/lca-agent && mv logcollect /opt/lca-agent/
 
 # 创建配置文件
 cat > /opt/lca-agent/logcollect.yaml <<'EOF'
-api_server: "http://192.168.1.100:8086"
-admin_server: "http://192.168.1.100:8080"
+api_server: "http://localhost"
+admin_server: "http://localhost:80"
 api_key: "ak_app-nginx_a1b2c3d4"
 agent_id: "web-server-01"
 batch_size: 50
