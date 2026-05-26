@@ -60,7 +60,7 @@ license:
 
 ai:
   provider: "deepseek"
-  api_key: "sk-fccf66eb54164c22adbb4f831eeab9eb"
+  api_key: "sk-XXX"
   base_url: "https://api.deepseek.com"
   model: "deepseek-v4-flash"
   max_tokens: 40960
