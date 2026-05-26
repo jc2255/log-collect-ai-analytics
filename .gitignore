@@ -48,6 +48,10 @@ Thumbs.db
 keys/private.pem
 keys/*.p12
 
+# 本地配置（含API密钥，不入库）
+configs/admin.yaml
+configs/admin-docker.yaml
+
 # 测试日志
 /tmp/lca-test-logs/
 
