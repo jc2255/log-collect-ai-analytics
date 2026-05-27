@@ -3,10 +3,6 @@ server:
   port: 8080
   mode: "release"
 
-# lca.top 远程授权验证服务地址（权威数据源，用于验证 www.lca.top 购买的授权码）
-# 为空时则仅使用本地 RSA 验签（需 license.public_key 与签发私钥严格对应）
-lca_top_url: "https://www.lca.top"
-
 mysql:
   host: "mysql"
   port: 3306
