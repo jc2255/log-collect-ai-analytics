@@ -29,6 +29,14 @@ syslog:
 clean:
 	rm -rf $(BINARY_DIR)
 
+# 交叉编译 Linux amd64 发布版本
+release:
+	CGO_ENABLED=0 GOOS=linux GOARCH=amd64 $(GO) build $(GOFLAGS) -o release/bin/admin ./cmd/admin
+	CGO_ENABLED=0 GOOS=linux GOARCH=amd64 $(GO) build $(GOFLAGS) -o release/bin/apiserver ./cmd/apiserver
+	CGO_ENABLED=0 GOOS=linux GOARCH=amd64 $(GO) build $(GOFLAGS) -o release/bin/logcollect ./cmd/logcollect
+	CGO_ENABLED=0 GOOS=linux GOARCH=amd64 $(GO) build $(GOFLAGS) -o release/bin/logtransfer ./cmd/logtransfer
+	CGO_ENABLED=0 GOOS=linux GOARCH=amd64 $(GO) build $(GOFLAGS) -o release/bin/syslog ./cmd/syslog
+
 # 开发模式运行
 run-admin:
 	$(GO) run ./cmd/admin -config configs/admin.yaml
