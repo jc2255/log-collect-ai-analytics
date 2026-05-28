@@ -519,6 +519,7 @@ INSERT IGNORE INTO `menus` (`id`,`created_at`,`updated_at`,`deleted_at`,`parent_
 (41,NOW(),NOW(),NULL,4,'日志库','/log/store','','Folder',1,1,'C',1,'log:store:list',''),
 (42,NOW(),NOW(),NULL,4,'日志查询','/log/list','','List',2,1,'C',1,'log:list:view',''),
 (44,NOW(),NOW(),NULL,4,'告警历史','/log/alert-history','','Bell',3,1,'C',1,'log:alert:history',''),
+(43,NOW(),NOW(),NULL,4,'DSL查询','/log/dsl','','Search',4,1,'C',1,'log:dsl:view',''),
 -- 备份管理子菜单
 (51,NOW(),NOW(),NULL,5,'备份列表','/backup/snapshots','','Files',1,1,'C',1,'backup:snapshot:list',''),
 (52,NOW(),NOW(),NULL,5,'备份策略','/backup/policies','','SetUp',2,1,'C',1,'backup:policy:list',''),
@@ -568,6 +569,6 @@ INSERT IGNORE INTO `role_menus` (`role_id`,`menu_id`) VALUES
 
 -- 日志库（3个示例，敏感配置留空，部署后在界面填写）
 INSERT IGNORE INTO `log_stores` (`id`,`created_at`,`updated_at`,`deleted_at`,`name`,`description`,`index_pattern`,`api_key`,`kafka_topic`,`status`,`compress`,`roll_max_days`,`roll_max_size_gb`,`cold_days`,`delete_days`,`ai_alert_enabled`,`ai_alert_config`,`oss_repository`,`oss_endpoint`,`oss_bucket`,`oss_access_key_id`,`oss_access_key_secret`,`oss_path`,`oss_chunk_size`) VALUES
-(1,NOW(),NOW(),NULL,'app_nginx',   'Nginx访问日志',   'app_nginx-*',   'ak_nginx_001',   'lca_app-nginx',   1,1,7, 50,30, 90,0,NULL,'','','','','','lca/','500mb'),
-(2,NOW(),NOW(),NULL,'app_backend', '后端应用日志',   'app_backend-*', 'ak_backend_002', 'lca_app-backend', 1,1,7,  0,15, 60,0,NULL,'','','','','','',    '500mb'),
-(3,NOW(),NOW(),NULL,'app_security','安全审计日志',   'app_security-*','ak_security_003','lca_app-security',1,1,0,  0, 0,180,0,NULL,'','','','','','',    '500mb');
+(1,NOW(),NOW(),NULL,'app_nginx',   'Nginx访问日志',   '',   'ak_nginx_001',   'lca_app-nginx',   1,1,7, 50,30, 90,0,NULL,'','','','','','lca/','500mb'),
+(2,NOW(),NOW(),NULL,'app_backend', '后端应用日志',   '', 'ak_backend_002', 'lca_app-backend', 1,1,7,  0,15, 60,0,NULL,'','','','','','',    '500mb'),
+(3,NOW(),NOW(),NULL,'app_security','安全审计日志',   '','ak_security_003','lca_app-security',1,1,0,  0, 0,180,0,NULL,'','','','','','',    '500mb');
