@@ -501,7 +501,7 @@ Agent 每 **60 秒**自动从 admin 拉取最新任务，无需重启即可生�
 ### 接口说明
 
 ```
-POST http://your-apiserver:8086/api/v1/log/push
+POST http://your-apiserver/api/v1/log/push
 Content-Type: application/json
 X-Trace-Id: <16位 hex>      // 可选，不传服务端会自动生成
 
@@ -541,7 +541,7 @@ X-Trace-Id: <16位 hex>      // 可选，不传服务端会自动生成
 #### 1. 推送单条原始日志
 
 ```bash
-curl -X POST http://localhost:8086/api/v1/log/push \
+curl -X POST http://localhost/api/v1/log/push \
   -H "Content-Type: application/json" \
   -d '{
     "api_key": "ak_app-nginx_a1b2c3d4",
@@ -558,7 +558,7 @@ curl -X POST http://localhost:8086/api/v1/log/push \
 #### 2. 批量推送多条日志
 
 ```bash
-curl -X POST http://localhost:8086/api/v1/log/push \
+curl -X POST http://localhost/api/v1/log/push \
   -H "Content-Type: application/json" \
   -d '{
     "api_key": "ak_app-nginx_a1b2c3d4",
@@ -589,7 +589,7 @@ curl -X POST http://localhost:8086/api/v1/log/push \
 #### 3. 推送结构化 JSON 日志（Java / Go / Python 应用）
 
 ```bash
-curl -X POST http://localhost:8086/api/v1/log/push \
+curl -X POST http://localhost/api/v1/log/push \
   -H "Content-Type: application/json" \
   -d '{
     "api_key": "ak_app-backend_b5c6d7e8",
@@ -612,7 +612,7 @@ curl -X POST http://localhost:8086/api/v1/log/push \
 
 ```bash
 # 假设 Nginx 配置了 JSON 格式日志
-curl -X POST http://localhost:8086/api/v1/log/push \
+curl -X POST http://localhost/api/v1/log/push \
   -H "Content-Type: application/json" \
   -d '{
     "api_key": "ak_app-nginx_a1b2c3d4",
@@ -650,7 +650,7 @@ curl -X POST http://localhost:8086/api/v1/log/push \
 ```bash
 #!/bin/bash
 # 实时推送应用日志到 LCA
-API_URL="http://localhost:8086/api/v1/log/push"
+API_URL="http://localhost/api/v1/log/push"
 API_KEY="ak_app-backend_b5c6d7e8"
 LOG_FILE="/var/log/app/app.log"
 
@@ -672,7 +672,7 @@ import requests
 import json
 from datetime import datetime, timezone
 
-LCA_URL = "http://localhost:8086/api/v1/log/push"
+LCA_URL = "http://localhost/api/v1/log/push"
 API_KEY = "ak_app-backend_b5c6d7e8"
 
 def push_log(level: str, message: str, **extra):
@@ -705,7 +705,7 @@ push_log("ERROR", "Database connection failed", service="user-service", retry=3)
 ```ruby
 output {
   http {
-    url    => "http://localhost:8086/api/v1/log/push"
+    url    => "http://localhost/api/v1/log/push"
     format => "json"
     http_method => "post"
     mapping => {
@@ -911,6 +911,7 @@ docker compose -f docker-compose.ha.yaml up -d --force-recreate <service>
 单纯 `up -d --force-recreate` **不会**重新打包镜像。
 
 ---
+### AI配置 configs/admin-ha.yaml 找到 ai配置即可
 
 ## 更新日志
 
