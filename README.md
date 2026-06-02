@@ -139,8 +139,8 @@
 
 | 服务 | 端口 | 说明 |
 |------|------|------|
-| `admin` | **8080** | 管理后台 API + 静态资源服务（必须启动） |
-| `apiserver` | **8086** | 日志推送接入点（Agent 上报 + 直接投递） |
+| `admin` | **docker-compose.ha.yaml可修改** | 管理后台 API + 静态资源服务（必须启动） |
+| `apiserver` | **docker-compose.ha.yaml可修改** | 日志推送接入点（Agent 上报 + 直接投递） |
 | `logtransfer` | — | Kafka 消费者，写入 Elasticsearch |
 | `logcollect` | — | Linux/macOS Agent，部署在被采集机器上 |
 | `logcollect_win` | — | Windows Agent |
@@ -445,8 +445,7 @@ mkdir -p /opt/lca-agent && mv logcollect /opt/lca-agent/
 # 创建配置文件
 cat > /opt/lca-agent/logcollect.yaml <<'EOF'
 api_server: "http://localhost"
-admin_server: "http://localhost:80"
-api_key: "ak_app-nginx_a1b2c3d4"
+admin_server: "http://localhost"
 agent_id: "web-server-01"
 batch_size: 50
 flush_seconds: 5
