@@ -480,7 +480,7 @@ nssm start LCACollect
 
 ```bash
 # 从 GitHub 下载预编译二进制
-wget https://github.com/jc2255/log-collect-ai-analytics/raw/main/release/bin/syslog -O logcollect
+wget https://github.com/jc2255/log-collect-ai-analytics/raw/main/release/bin/syslog -O syslog
 chmod +x syslog
 
 # 创建工作目录
