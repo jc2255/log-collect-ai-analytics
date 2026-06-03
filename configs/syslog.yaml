@@ -5,7 +5,18 @@ batch_size: 50
 flush_seconds: 3
 
 routes:
-  - match: "nginx"
-    api_key: "nginx-log-store-api-key"
-  - match: "app"
-    api_key: "app-log-store-api-key"
+  # 安全策略日志 → fw-security 日志库
+  - match: "security:"
+    api_key: "ak_security_003"
+
+  # 流量日志 → fw-traffic 日志库
+  - match: "traffic:"
+    api_key: "ak_nginx_001"
+
+  # VPN 日志 → 也走安全日志库
+  - match: "vpn:"
+    api_key: "ak_nginx_001"
+
+  # 兜底：所有其他 360 日志 → fw-system
+  - match: "360Firewall"
+    api_key: "ak_nginx_001"

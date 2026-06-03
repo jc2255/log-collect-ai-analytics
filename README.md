@@ -474,6 +474,52 @@ nssm install LCACollect "C:\lca-agent\logcollect.exe" "-config C:\lca-agent\logc
 nssm start LCACollect
 ```
 
+## Syslog 部署
+
+### Linux / macOS
+
+```bash
+# 从 GitHub 下载预编译二进制
+wget https://github.com/jc2255/log-collect-ai-analytics/raw/main/release/bin/syslog -O logcollect
+chmod +x syslog
+
+# 创建工作目录
+mkdir -p /opt/syslog && mv syslog /opt/syslog/
+
+# 创建配置文件
+cat > /opt/syslog/syslog.yaml <<'EOF'
+udp_port: 514
+tcp_port: 514
+api_server: "http://127.0.0.1:8086"
+batch_size: 50
+flush_seconds: 3
+
+routes:
+  # 安全策略日志 → fw-security 日志库
+  - match: "security:"
+    api_key: "ak_security_003"
+
+  # 流量日志 → fw-traffic 日志库
+  - match: "traffic:"
+    api_key: "ak_nginx_001"
+
+  # VPN 日志 → 也走安全日志库
+  - match: "vpn:"
+    api_key: "ak_nginx_001"
+
+  # 兜底：所有其他 360 日志 → fw-system
+  - match: "360Firewall"
+    api_key: "ak_nginx_001"
+
+EOF
+
+# 启动（前台调试）
+cd /opt/syslog && ./syslog -config syslog.yaml
+
+# 后台守护进程
+nohup /opt/syslog/syslog -config /opt/syslog/syslog.yaml > /var/log/syslog.log 2>&1 &
+```
+
 ### 采集任务配置
 
 Agent 启动后，在管理后台「日志采集 → 采集任务」中添加任务：
