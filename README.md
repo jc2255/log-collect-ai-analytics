@@ -490,11 +490,19 @@ mkdir -p /opt/syslog && mv syslog /opt/syslog/
 cat > /opt/syslog/syslog.yaml <<'EOF'
 udp_port: 514
 tcp_port: 514
-api_server: "http://127.0.0.1:8086"
+api_server: "http://127.0.0.1"
+timezone: "Asia/Shanghai"
 batch_size: 50
 flush_seconds: 3
 
+# 日志配置
+log_level: "info"
+log_file: "/opt/syslog/logs/syslog.log"
+
 routes:
+  - match: ""
+    api_key: "ak_nginx_001"
+
   # 安全策略日志 → fw-security 日志库
   - match: "security:"
     api_key: "ak_security_003"
