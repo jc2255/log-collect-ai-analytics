@@ -28,6 +28,7 @@
 - [各服务启动说明](#各服务启动说明)
 - [配置文件详解](#配置文件详解)
 - [Agent 部署](#agent-部署)
+- [syslog 部署支持路由器防火墙收集日志](#syslog-部署)
 - [API 直接投递日志](#api-直接投递日志)
 - [AI 智能告警](#ai-智能告警)
 - [授权码](#授权码)
@@ -473,6 +474,8 @@ C:\lca-agent\logcollect.exe -config C:\lca-agent\logcollect.yaml
 nssm install LCACollect "C:\lca-agent\logcollect.exe" "-config C:\lca-agent\logcollect.yaml"
 nssm start LCACollect
 ```
+
+---
 
 ## Syslog 部署
 
