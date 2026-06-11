@@ -1,0 +1,39 @@
+# ==========================================================
+# logcollect Agent - 独立部署
+#
+# 适用场景: 部署到 N 台边缘服务器上采集本机日志
+# 使用方式:
+#   1. 复制此目录到目标服务器: scp -r deploy/logcollect/ user@host:/opt/lca-agent/
+#   2. 复制二进制文件:         scp release/bin/logcollect user@host:/opt/lca-agent/
+#   3. 修改 .env 配置
+#   4. docker compose up -d
+# ==========================================================
+
+services:
+  logcollect:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: lca-logcollect
+    restart: always
+    volumes:
+      # 宿主机根目录只读挂载（采集动态路径日志必须）
+      - /:/host:ro
+      # 配置文件
+      - ./config.yaml:/app/config.yaml:ro
+      # 自身日志持久化
+      - ./logs:/app/logs
+      # 死信目录持久化（容器重启不丢失）
+      - ./dead_letters:/app/dead_letters
+    environment:
+      - TZ=Asia/Shanghai
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "50m"
+        max-file: "3"
+    deploy:
+      resources:
+        limits:
+          memory: ${RESOURCE_MEMORY:-256M}
+          cpus: '${RESOURCE_CPUS:-0.5}'

@@ -1,0 +1,12 @@
+# ==========================================================
+# logcollect Agent - 运行时配置
+# 此文件由 deploy.sh 根据 .env 自动生成，请勿手动修改
+# ==========================================================
+
+api_server: "${API_URL}"
+admin_server: "${ADMIN_URL}"
+agent_id: "${AGENT_ID}"
+batch_size: ${BATCH_SIZE}
+flush_seconds: ${FLUSH_SECONDS}
+host_log_root: "/host"
+hostname: "${HOSTNAME}"

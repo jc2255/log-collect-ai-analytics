@@ -1,0 +1,12 @@
+udp_port: 514
+tcp_port: 514
+api_server: "http://lca-apiserver:8086"
+timezone: "Asia/Shanghai"
+batch_size: 50
+flush_seconds: 3
+log_level: "info"
+log_file: "logs/syslog.log"
+
+routes:
+  - match: ""
+    api_key: "ak_backend_002"

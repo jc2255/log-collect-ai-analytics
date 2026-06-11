@@ -31,6 +31,10 @@ elasticsearch:
   password: ""
   sniff: false
 
+transfer:
+  batch_size: 100        # ES 单批次写入条数
+  max_bulk_bytes: 10485760  # bulk 请求最大字节数 (10MB)，超限自动拆分
+
 jwt:
   secret: "lca-secret-key-change-in-production"
   expire_hour: 24

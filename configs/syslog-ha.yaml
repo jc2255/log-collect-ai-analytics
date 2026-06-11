@@ -1,0 +1,29 @@
+udp_port: 514
+tcp_port: 514
+api_server: "http://nginx"
+timezone: "Asia/Shanghai"
+batch_size: 50
+flush_seconds: 3
+log_level: "info"
+log_file: "logs/syslog.log"
+
+routes:
+  # 默认路由（未匹配的日志使用此 api_key）
+  - match: ""
+    api_key: "ak_backend_002"
+
+  # 安全策略日志 → fw-security 日志库
+  - match: "security:"
+    api_key: "ak_backend_002"
+
+  # 流量日志 → fw-traffic 日志库
+  - match: "traffic:"
+    api_key: "ak_backend_002"
+
+  # VPN 日志 → 也走安全日志库
+  - match: "vpn:"
+    api_key: "ak_backend_002"
+
+  # 兜底：所有其他 360 日志 → fw-system
+  - match: "360Firewall"
+    api_key: "ak_backend_002"

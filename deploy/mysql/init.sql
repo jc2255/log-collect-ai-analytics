@@ -505,6 +505,7 @@ INSERT IGNORE INTO `menus` (`id`,`created_at`,`updated_at`,`deleted_at`,`parent_
 (4, NOW(),NOW(),NULL,0,'日志管理','/log','','Document',4,1,'M',1,'',''),
 (5, NOW(),NOW(),NULL,0,'备份管理','/backup','','FolderOpened',5,1,'M',1,'',''),
 (6, NOW(),NOW(),NULL,0,'日志采集','/collect','','Connection',6,1,'M',1,'',''),
+(8, NOW(),NOW(),NULL,0,'数据分析','/analytics','','TrendCharts',8,1,'M',1,'',''),
 -- 权限管理子菜单
 (21,NOW(),NOW(),NULL,2,'用户管理','/permission/users','','User',1,1,'C',1,'permission:user:list',''),
 (22,NOW(),NOW(),NULL,2,'角色管理','/permission/roles','','UserFilled',2,1,'C',1,'permission:role:list',''),
@@ -519,15 +520,17 @@ INSERT IGNORE INTO `menus` (`id`,`created_at`,`updated_at`,`deleted_at`,`parent_
 (41,NOW(),NOW(),NULL,4,'日志库','/log/store','','Folder',1,1,'C',1,'log:store:list',''),
 (42,NOW(),NOW(),NULL,4,'日志查询','/log/list','','List',2,1,'C',1,'log:list:view',''),
 (44,NOW(),NOW(),NULL,4,'告警历史','/log/alert-history','','Bell',3,1,'C',1,'log:alert:history',''),
-(45,NOW(),NOW(),NULL,4,'DSL查询','/log/dsl','','Search',4,1,'C',1,'log:dsl:view',''),
 -- 备份管理子菜单
 (51,NOW(),NOW(),NULL,5,'备份列表','/backup/snapshots','','Files',1,1,'C',1,'backup:snapshot:list',''),
 (52,NOW(),NOW(),NULL,5,'备份策略','/backup/policies','','SetUp',2,1,'C',1,'backup:policy:list',''),
 -- 日志采集子菜单
 (61,NOW(),NOW(),NULL,6,'采集任务','/collect/tasks','','Position',1,1,'C',1,'collect:task:list',''),
 (62,NOW(),NOW(),NULL,6,'Agent管理','/collect/agents','','Monitor',2,1,'C',1,'collect:agent:list',''),
+-- 数据分析子菜单
+(81,NOW(),NOW(),NULL,8,'DSL查询','/analytics/dsl','','Promotion',1,1,'C',1,'analytics:dsl:view',''),
+(82,NOW(),NOW(),NULL,8,'多维分析','/analytics/dashboard','','DataAnalysis',2,1,'C',1,'analytics:dashboard:view',''),
 -- AI智能体
-(7, NOW(),NOW(),NULL,0,'AI智能体','/ai','','MagicStick',7,1,'M',1,'',''),
+(7, NOW(),NOW(),NULL,0,'AI智能体','/ai','','MagicStick',9,1,'M',1,'',''),
 (71,NOW(),NOW(),NULL,7,'AI对话','/ai/agent','','ChatDotRound',1,1,'C',1,'ai:agent:use','');
 
 -- 角色
@@ -553,22 +556,22 @@ INSERT IGNORE INTO `user_roles` (`user_id`,`role_id`) VALUES
 -- 角色-菜单关联（管理员拥有全部菜单）
 INSERT IGNORE INTO `role_menus` (`role_id`,`menu_id`) VALUES
 -- 管理员：全部
-(1,1),(1,2),(1,3),(1,4),(1,5),(1,6),(1,7),
+(1,1),(1,2),(1,3),(1,4),(1,5),(1,6),(1,7),(1,8),
 (1,21),(1,22),(1,23),(1,24),(1,25),
 (1,32),(1,33),(1,34),
 (1,41),(1,42),(1,44),
 (1,51),(1,52),
 (1,61),(1,62),
 (1,71),
--- 运维：日志+备份+采集+AI
-(2,4),(2,5),(2,6),(2,7),(2,41),(2,42),(2,44),(2,51),(2,52),(2,61),(2,62),(2,71),
--- 开发：日志查询+告警历史
-(3,42),(3,44),
+(1,81),(1,82),
+-- 运维：日志+备份+采集+AI+数据分析
+(2,4),(2,5),(2,6),(2,7),(2,8),(2,41),(2,42),(2,44),(2,51),(2,52),(2,61),(2,62),(2,71),(2,81),(2,82),
+-- 开发：日志查询+告警历史+数据分析
+(3,42),(3,44),(3,81),(3,82),
 -- 测试：日志查询
 (4,42);
 
 -- 日志库（3个示例，敏感配置留空，部署后在界面填写）
 INSERT IGNORE INTO `log_stores` (`id`,`created_at`,`updated_at`,`deleted_at`,`name`,`description`,`index_pattern`,`api_key`,`kafka_topic`,`status`,`compress`,`roll_max_days`,`roll_max_size_gb`,`cold_days`,`delete_days`,`ai_alert_enabled`,`ai_alert_config`,`oss_repository`,`oss_endpoint`,`oss_bucket`,`oss_access_key_id`,`oss_access_key_secret`,`oss_path`,`oss_chunk_size`) VALUES
-(1,NOW(),NOW(),NULL,'app_nginx',   'Nginx访问日志',   '',   'ak_nginx_001',   'lca_app-nginx',   1,1,7, 50,30, 90,0,NULL,'','','','','','lca/','500mb'),
-(2,NOW(),NOW(),NULL,'app_backend', '后端应用日志',   '', 'ak_backend_002', 'lca_app-backend', 1,1,7,  0,15, 60,0,NULL,'','','','','','',    '500mb'),
-(3,NOW(),NOW(),NULL,'app_security','安全审计日志',   '','ak_security_003','lca_app-security',1,1,0,  0, 0,180,0,NULL,'','','','','','',    '500mb');
+(1,NOW(),NOW(),NULL,'lca',   'lca应用日志',   '',   'ak_nginx_001',   'lca-app',   1,1,7, 50,30, 90,0,NULL,'','','','','','lca/','500mb'),
+(2,NOW(),NOW(),NULL,'syslog', 'syslog协议日志',   '', 'ak_backend_002', 'lca_syslog-app', 1,1,7,  0,15, 60,0,NULL,'','','','','','',    '500mb');

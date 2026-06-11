@@ -1,0 +1,13 @@
+# ==========================================================
+# logcollect Docker 部署配置（仅限主 docker-compose 内使用）
+# 说明: 此配置与 admin/apiserver 在同一个 docker-compose 网络内，故可用容器名
+# 独立部署请使用 deploy/logcollect/ 目录下的部署包，填真实 IP
+# ==========================================================
+
+api_server: "http://lca-apiserver:8086"   # 仅在同 docker-compose 网络内有效
+admin_server: "http://lca-admin:8080"      # 仅在同 docker-compose 网络内有效
+agent_id: "lca-agent-docker"
+batch_size: 50
+flush_seconds: 5
+host_log_root: "/host"      # Docker 部署：宿主机根目录挂载到 /host
+hostname: ""               # 必填！填写宿主机真实 hostname，确保管理后台能匹配
