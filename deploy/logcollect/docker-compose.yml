@@ -25,6 +25,8 @@ services:
       - ./logs:/app/logs
       # 死信目录持久化（容器重启不丢失）
       - ./dead_letters:/app/dead_letters
+      # offset 本地缓存持久化（防止容器重启时重复采集）
+      - ./offsets.json:/app/offsets.json
     environment:
       - TZ=Asia/Shanghai
     logging:

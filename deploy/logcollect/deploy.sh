@@ -64,8 +64,10 @@ if [ ! -f "$BINARY" ]; then
     fi
 fi
 
-# ---------- 4. 创建运行时目录 ----------
+# ---------- 4. 创建运行时目录/文件 ----------
 mkdir -p logs dead_letters
+# 确保 offsets.json 存在（Docker挂载文件时不存在会被当成目录）
+[ -f offsets.json ] || echo '[]' > offsets.json
 
 # ---------- 5. 启动 ----------
 if [ "${1:-}" = "restart" ]; then
