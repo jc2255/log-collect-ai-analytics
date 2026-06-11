@@ -18,9 +18,8 @@ RUN apk add --no-cache ca-certificates tzdata \
 
 WORKDIR /app
 
-# 从项目 release 目录复制预编译的二进制
-ARG BINARY_PATH=../../release/bin/logcollect
-COPY ${BINARY_PATH} ./server
+# 复制当前目录下的预编译二进制（deploy.sh 会自动复制到此处）
+COPY logcollect ./server
 RUN chmod +x ./server
 
 # 创建死信目录
