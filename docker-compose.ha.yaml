@@ -385,8 +385,8 @@ services:
     deploy:
       resources:
         limits:
-          memory: 256M
-          cpus: '0.5'
+          memory: 1024M
+          cpus: '1.0'
     networks:
       - lca-ha-net
 
@@ -417,8 +417,8 @@ services:
     deploy:
       resources:
         limits:
-          memory: 256M
-          cpus: '0.5'
+          memory: 1024M
+          cpus: '1.0'
     networks:
       - lca-ha-net
 
