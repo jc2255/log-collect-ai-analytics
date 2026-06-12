@@ -44,7 +44,7 @@ echo "  API      : ${API_URL}"
 echo "========================================"
 
 # ---------- 2. 生成运行时配置 ----------
-export API_URL ADMIN_URL AGENT_ID BATCH_SIZE FLUSH_SECONDS HOSTNAME
+export API_URL ADMIN_URL AGENT_ID BATCH_SIZE FLUSH_SECONDS PUSH_CONCURRENCY HOSTNAME
 envsubst < config.template.yaml > config.yaml
 echo ">> 已生成 config.yaml"
 

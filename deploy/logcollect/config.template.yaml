@@ -8,5 +8,6 @@ admin_server: "${ADMIN_URL}"
 agent_id: "${AGENT_ID}"
 batch_size: ${BATCH_SIZE}
 flush_seconds: ${FLUSH_SECONDS}
+push_concurrency: ${PUSH_CONCURRENCY}
 host_log_root: "/host"
 hostname: "${HOSTNAME}"

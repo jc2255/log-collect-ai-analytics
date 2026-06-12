@@ -9,5 +9,6 @@ admin_server: "http://lca-admin:8080"      # 仅在同 docker-compose 网络内�
 agent_id: "lca-agent-docker"
 batch_size: 50
 flush_seconds: 5
+push_concurrency: 5          # 推送并发数，默认5，可根据apiserver承受能力调大/调小
 host_log_root: "/host"      # Docker 部署：宿主机根目录挂载到 /host
 hostname: ""               # 必填！填写宿主机真实 hostname，确保管理后台能匹配
