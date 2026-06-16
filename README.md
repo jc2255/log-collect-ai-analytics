@@ -35,6 +35,7 @@
 - [项目结构](#项目结构)
 - [故障排查](#故障排查)
 - [更新日志](#更新日志)
+- [社区群](#加入微信群)
 
 ---
 
@@ -427,6 +428,8 @@ api_key: "ak_your_logstore_xxx"            # 日志库的 API Key（在日志库
 agent_id: "server-prod-001"               # 当前机器的唯一标识
 batch_size: 50                             # 批量发送条数
 flush_seconds: 5                           # 最大积攒秒数（超时强制发送）
+push_concurrency: 5        # 推送并发数，默认5，可根据apiserver承受能力调大/调小
+hostname: ""               # 必填！填写宿主机真实 hostname，确保管理后台能匹配
 ```
 
 ---
@@ -450,6 +453,7 @@ admin_server: "http://localhost"
 agent_id: "web-server-01"
 batch_size: 50
 flush_seconds: 5
+hostname: "" 
 EOF
 
 # 启动（前台调试）
@@ -589,6 +593,7 @@ X-Trace-Id: <16位 hex>      // 可选，不传服务端会自动生成
 - `_source_ip`：推送方 IP
 - `_store_name`：日志库名称
 - `_trace_id`：全链路追踪 ID（便于事后 ES 检索）
+- `_log_id`：日志幂等
 
 ---
 
@@ -658,7 +663,8 @@ curl -X POST http://localhost/api/v1/log/push \
         "thread": "http-nio-8080-exec-3",
         "traceId": "abc123def456",
         "userId": 1001,
-        "exception": "java.sql.SQLException: Timeout waiting for connection from pool"
+        "exception": "java.sql.SQLException: Timeout waiting for connection from pool",
+        "_log_id":"1781251982861509301幂等"
       }
     ]
   }'
@@ -681,7 +687,8 @@ curl -X POST http://localhost/api/v1/log/push \
         "body_bytes_sent": 1234,
         "request_time": 0.125,
         "http_user_agent": "Mozilla/5.0",
-        "http_referer": "https://example.com"
+        "http_referer": "https://example.com",
+        "_log_id":"1781251982861509301幂等"
       }
     ]
   }'
@@ -1015,3 +1022,9 @@ docker compose -f docker-compose.ha.yaml up -d --force-recreate <service>
     <a href="mailto:support@lca.top">联系我们</a>
   </p>
 </div>
+
+---
+
+## 加入群
+
+![微信群](images/wxq.jpg)
