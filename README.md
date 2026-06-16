@@ -1025,6 +1025,6 @@ docker compose -f docker-compose.ha.yaml up -d --force-recreate <service>
 
 ---
 
-## 加入群
+## 加入微信群
 
 ![微信群](images/wxq.jpg)
