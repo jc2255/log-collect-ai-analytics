@@ -978,6 +978,9 @@ docker compose -f docker-compose.ha.yaml up -d --force-recreate <service>
 
 ## 更新日志
 
+### v1.3.4
+- 修复了授权码月付用户到期无法解绑的问题，旧版本用户请升级到v1.3.4的版本，新增了AI样本分析，日志采集过滤等功能。
+
 ### v1.3.1
 - 新增**全链路 trace_id 追踪**：agent → apiserver → Kafka → logtransfer → ES 同一条日志共享一个 `X-Trace-Id`，后续问题定位只需提供该 ID
 - HTTP 响应体 / Header / Kafka Header / ES `_trace_id` 字段多点透传
