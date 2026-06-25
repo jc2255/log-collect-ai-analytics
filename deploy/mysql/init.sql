@@ -151,6 +151,7 @@ CREATE TABLE IF NOT EXISTS `collect_tasks` (
   `multiline_pattern` varchar(500) COLLATE utf8mb4_unicode_ci DEFAULT NULL COMMENT '多行合并正则',
   `parse_mode` varchar(20) COLLATE utf8mb4_unicode_ci DEFAULT 'json' COMMENT 'json/regex/delimiter/raw',
   `parse_config` text COLLATE utf8mb4_unicode_ci COMMENT '解析配置JSON',
+  `filter_config` text COLLATE utf8mb4_unicode_ci COMMENT '采集过滤配置JSON',
   `status` tinyint DEFAULT '1' COMMENT '1-启用 0-禁用',
   `store_name` varchar(100) COLLATE utf8mb4_unicode_ci NOT NULL COMMENT '日志库名称',
   PRIMARY KEY (`id`),
