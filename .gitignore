@@ -55,5 +55,8 @@ configs/admin-docker.yaml
 # 测试日志
 /tmp/lca-test-logs/
 
+# Docker Compose（本地配置，不入库）
+docker-compose.yaml
+
 # 产品文档（仅本地保留）
 /docs/
