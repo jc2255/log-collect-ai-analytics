@@ -350,45 +350,6 @@ services:
     networks:
       - lca-ha-net
 
-  # ==================== 日志采集 Agent（可选） ====================
-
-  logcollect:
-    build:
-      context: .
-      dockerfile: deploy/Dockerfile
-      args:
-        APP_NAME: logcollect
-    container_name: lca-logcollect
-    restart: always
-    volumes:
-      # 配置文件
-      - ./configs/logcollect-docker.yaml:/app/config.yaml
-      # 宿主机根目录只读挂载 → 容器内 /host（配合 host_log_root 配置）
-      - /:/host:ro
-      # 宿主机日志挂载
-      - ./logs/logcollect:/app/logs
-      # 死信目录持久化（避免容器重启丢失未重试的死信）
-      - ./data/logcollect/dead_letters:/app/dead_letters
-      # offset 本地缓存持久化（防止容器重启时重复采集）
-      - ./data/logcollect/offsets.json:/app/offsets.json
-    environment:
-      - TZ=Asia/Shanghai
-      # 容器内 os.Hostname() 返回的是容器 ID，须在 configs/logcollect-docker.yaml 中填写真实 hostname
-    depends_on:
-      admin:
-        condition: service_healthy
-      apiserver1:
-        condition: service_healthy
-      apiserver2:
-        condition: service_healthy
-    stop_grace_period: 15s
-    deploy:
-      resources:
-        limits:
-          memory: 1024M
-          cpus: '1.0'
-    networks:
-      - lca-ha-net
 
   # ==================== Syslog 接收器（单实例，直接暴露端口保留真实 IP） ====================
 
