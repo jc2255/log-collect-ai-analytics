@@ -3,7 +3,7 @@ data/
 logs/
 *.log
 .DS_Store
-bin/
+/bin/
 cmd/
 internal/
 keys/
