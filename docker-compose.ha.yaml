@@ -148,7 +148,12 @@ services:
   # ==================== Elasticsearch 集群 (3 Node) ====================
 
   es01:
-    image: docker.elastic.co/elasticsearch/elasticsearch:7.17.25
+    build:
+      context: .
+      dockerfile: deploy/Dockerfile.es
+      args:
+        ES_VERSION: "7.17.25"
+    image: lca-elasticsearch:7.17.25
     container_name: lca-es01
     restart: always
     entrypoint: ["/bin/tini", "--", "/bin/bash", "/usr/local/bin/lca-es-entrypoint.sh"]
@@ -182,7 +187,9 @@ services:
       - lca-ha-net
 
   es02:
-    image: docker.elastic.co/elasticsearch/elasticsearch:7.17.25
+    image: lca-elasticsearch:7.17.25
+    depends_on:
+      - es01
     container_name: lca-es02
     restart: always
     entrypoint: ["/bin/tini", "--", "/bin/bash", "/usr/local/bin/lca-es-entrypoint.sh"]
@@ -209,7 +216,9 @@ services:
       - lca-ha-net
 
   es03:
-    image: docker.elastic.co/elasticsearch/elasticsearch:7.17.25
+    image: lca-elasticsearch:7.17.25
+    depends_on:
+      - es01
     container_name: lca-es03
     restart: always
     entrypoint: ["/bin/tini", "--", "/bin/bash", "/usr/local/bin/lca-es-entrypoint.sh"]

@@ -3,6 +3,7 @@ data/
 logs/
 *.log
 .DS_Store
+# 仅忽略仓库根目录的 bin/，不要写成 bin/（会误伤 release/bin/amd64 等）
 /bin/
 cmd/
 internal/

@@ -1,13 +1,17 @@
-# 可选：在官方 ES 镜像上安装阿里云 repository-oss 插件（OSS 快照备份用）
-# 默认 HA/单机 compose 直接使用官方镜像，不走本 Dockerfile。
+# LCA Elasticsearch 镜像：官方 7.17.25 + 阿里云 repository-oss（OSS 快照备份）
+# 插件包由 scripts/prepare-oss-plugin.sh 生成到 deploy/es/
 #
-# 用法：
-#   1. 从 https://github.com/aliyun/elasticsearch-repository-oss/releases
-#      下载与 ES 版本一致的插件包到 deploy/es/
-#   2. 修改下方 COPY 文件名后：
-#      docker compose -f docker-compose.ha.yaml build es01
-FROM docker.elastic.co/elasticsearch/elasticsearch:7.17.25
+# 构建（在仓库根目录）:
+#   docker compose -f docker-compose.ha.yaml build es01
+# 或:
+#   docker build -f deploy/Dockerfile.es -t lca-elasticsearch:7.17.25 .
+ARG ES_VERSION=7.17.25
+FROM docker.elastic.co/elasticsearch/elasticsearch:${ES_VERSION}
 
-# COPY deploy/es/elasticsearch-repository-oss-<ver>.zip /tmp/oss-plugin.zip
-# RUN elasticsearch-plugin install --batch file:///tmp/oss-plugin.zip \
-#     && rm -f /tmp/oss-plugin.zip
+ARG ES_VERSION=7.17.25
+USER root
+COPY deploy/es/elasticsearch-repository-oss-${ES_VERSION}.zip /tmp/oss-plugin.zip
+RUN elasticsearch-plugin install --batch file:///tmp/oss-plugin.zip \
+    && rm -f /tmp/oss-plugin.zip \
+    && elasticsearch-plugin list | grep -q elasticsearch-repository-oss
+USER elasticsearch

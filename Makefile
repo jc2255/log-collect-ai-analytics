@@ -1,5 +1,5 @@
 .PHONY: all build clean admin apiserver logcollect logcollect_win logtransfer syslog \
-	release release-native release-amd64 release-arm64 ensure-binaries \
+	release release-native release-amd64 release-arm64 ensure-binaries ensure-oss-plugin \
 	prepare-host docker-up docker-up-all docker-down docker-rm docker-switch-ha docker-infra docker-rebuild docker-rebuild-agent \
 	docker-up-ha docker-logs docker-clean
 
@@ -51,6 +51,16 @@ release-arm64:
 ensure-binaries:
 	bash scripts/ensure-binaries.sh
 
+# ES OSS 快照插件：交付包应自带 zip；源码仓缺失时自动下载整理
+ensure-oss-plugin:
+	@if [ -f deploy/es/elasticsearch-repository-oss-7.17.25.zip ]; then \
+		echo "[ensure-oss-plugin] 已存在 deploy/es/elasticsearch-repository-oss-7.17.25.zip"; \
+	elif [ -f scripts/prepare-oss-plugin.sh ]; then \
+		bash scripts/prepare-oss-plugin.sh; \
+	else \
+		echo "缺少 OSS 插件包 deploy/es/elasticsearch-repository-oss-7.17.25.zip" >&2; exit 1; \
+	fi
+
 # 有源码时重新构建前端；交付包没有 web/src，直接使用 release/web-dist
 ensure-web:
 	@if [ -d web/src ]; then bash scripts/build.sh --web --no-win; \
@@ -68,7 +78,7 @@ prepare-host:
 
 DOCKER_PLATFORM=linux/$(GOARCH_NATIVE)
 
-docker-up: prepare-host ensure-binaries ensure-web
+docker-up: prepare-host ensure-binaries ensure-oss-plugin ensure-web
 	LCA_TARGETARCH=$(GOARCH_NATIVE) DOCKER_DEFAULT_PLATFORM=$(DOCKER_PLATFORM) \
 		docker compose build --build-arg TARGETARCH=$(GOARCH_NATIVE)
 	LCA_TARGETARCH=$(GOARCH_NATIVE) DOCKER_DEFAULT_PLATFORM=$(DOCKER_PLATFORM) \
@@ -83,7 +93,7 @@ docker-up-all: prepare-host ensure-binaries ensure-web
 	LCA_TARGETARCH=$(GOARCH_NATIVE) DOCKER_DEFAULT_PLATFORM=$(DOCKER_PLATFORM) \
 		docker compose up -d --force-recreate $(COMPOSE_APPS)
 
-docker-up-ha: prepare-host ensure-binaries ensure-web
+docker-up-ha: prepare-host ensure-binaries ensure-oss-plugin ensure-web
 	LCA_TARGETARCH=$(GOARCH_NATIVE) DOCKER_DEFAULT_PLATFORM=$(DOCKER_PLATFORM) \
 		docker compose -f docker-compose.ha.yaml build --build-arg TARGETARCH=$(GOARCH_NATIVE)
 	# HA 本身不含 logcollect；前端由 nginx 挂载 ./release/web-dist
