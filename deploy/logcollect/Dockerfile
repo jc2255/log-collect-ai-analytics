@@ -1,16 +1,16 @@
 # ==========================================================
-# logcollect Agent - 独立部署 Dockerfile
-# 
-# 使用方式（项目根目录）:
-#   1. make release                         # 交叉编译 Linux 二进制
-#   2. cd deploy/logcollect && bash deploy.sh   # 一键部署
+# logcollect Agent - 独立部署 Dockerfile（支持 amd64 / arm64）
 #
-# 或直接 docker compose:
-#   cd deploy/logcollect
-#   docker compose up -d --build
+# 使用方式（项目根目录）:
+#   1. make release-native   # 编译当前架构
+#   2. cd deploy/logcollect && bash deploy.sh
 # ==========================================================
 
+ARG TARGETARCH=amd64
+
 FROM docker.m.daocloud.io/library/alpine:3.19
+
+ARG TARGETARCH
 
 RUN apk add --no-cache ca-certificates tzdata \
     && cp /usr/share/zoneinfo/Asia/Shanghai /etc/localtime \
@@ -18,11 +18,10 @@ RUN apk add --no-cache ca-certificates tzdata \
 
 WORKDIR /app
 
-# 复制当前目录下的预编译二进制（deploy.sh 会自动复制到此处）
+# 优先使用本目录下由 deploy.sh 复制的二进制；否则从 release 多架构目录复制
 COPY logcollect ./server
 RUN chmod +x ./server
 
-# 创建死信目录
 RUN mkdir -p /app/dead_letters
 
 ENTRYPOINT ["./server"]

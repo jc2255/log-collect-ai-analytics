@@ -23,19 +23,20 @@
 - [系统架构](#系统架构)
 - [技术栈](#技术栈)
 - [快速部署](#快速部署)
-  - [方式一：Docker Compose 高可用部署（推荐生产环境）](#方式一docker-compose-高可用部署推荐生产环境)
-  - [方式二：手动部署](#方式二手动部署)
+  - [单机](#单机)
+  - [高可用](#高可用)
+  - [从单机换到高可用](#从单机换到高可用)
+- [开始使用](#开始使用)
 - [各服务启动说明](#各服务启动说明)
 - [配置文件详解](#配置文件详解)
 - [Agent 部署](#agent-部署)
-- [syslog 部署支持路由器防火墙收集日志](#syslog-部署)
+- [Syslog](#syslog)
 - [API 直接投递日志](#api-直接投递日志)
 - [AI 智能告警](#ai-智能告警)
 - [授权码](#授权码)
 - [项目结构](#项目结构)
 - [故障排查](#故障排查)
 - [更新日志](#更新日志)
-- [社区群](#加入微信群)
 
 ---
 
@@ -43,16 +44,18 @@
 
 | 模块 | 功能描述 |
 |------|---------|
-| **日志采集** | Agent 跨平台（Linux/Windows）部署，Glob 路径匹配，断点续传，心跳检测，Agent 离线邮件告警 |
-| **API 直推** | 任意应用通过 HTTP API 直接投递日志，无需 Agent，支持批量推送 |
-| **日志传输** | Kafka 消峰削谷 → Elasticsearch 存储，支持多日志库独立 Topic 隔离 |
+| **日志采集** | 管理后台一键部署 Agent（Linux / macOS / Windows），Glob 路径，断点续传，心跳，离线通知 |
+| **Syslog** | 防火墙、路由器把日志发到本机 514（UDP/TCP），按主机名分到不同日志库 |
+| **API 直推** | 应用用 HTTP 批量推送，地址用宿主机 IP 或 `127.0.0.1:8086`，不要用容器名 |
+| **日志传输** | Kafka 消峰削谷 → Elasticsearch，每个日志库独立 Topic |
+| **服务监控** | 查看 apiserver、syslog、logtransfer、Agent 是否正常，以及各日志库是否在消费 |
 | **日志查询** | 类 Kibana Discover 界面，时间直方图、字段面板、KQL 全文搜索 |
-| **AI 智能告警** | ES 规则初筛 + OpenAI 兼容大模型深度分析，企业微信 / 钉钉 / 邮件 / Webhook 多渠道通知 |
+| **AI 智能告警** | ES 规则初筛 + 大模型分析。通知渠道统一配置：企业微信、钉钉、飞书、邮件、Webhook、阿里云短信 |
 | **告警历史** | 所有 AI 告警 + Agent 离线告警统一记录，支持按来源 / 级别 / 状态查询 |
 | **采集任务管理** | 可视化配置 Agent 采集路径、解析模式（raw/json/regex/delimiter）、多行合并 |
-| **Agent 管理** | 实时心跳监控，在线 / 离线状态，3 分钟超时自动标记并邮件通知管理员 |
+| **Agent 管理** | 实时心跳。超过约 3 分钟无心跳标为离线，并按已选通知渠道告警 |
 | **权限管理** | 基于 Casbin RBAC，支持部门 / 岗位 / 角色 / 菜单精细化权限控制 |
-| **备份管理** | Elasticsearch 快照自动备份至阿里云 OSS，支持手动恢复 |
+| **备份管理** | 快照策略可落到本机目录或阿里云 OSS，在「备份任务」里看每次执行结果 |
 | **AI智能体** | 可以根据指令智能完成相应的任务，你只需要给它发配指令就行 |
 | **授权码管理** | RSA 机器指纹绑定，在线激活，防盗用 |
 
@@ -113,40 +116,30 @@
 ## 系统架构
 
 ```
-┌────────────────────────────────────────────────────────────────┐
-│                         LCA 系统架构                            │
-├───────────────┬────────────────────────────────────────────────┤
-│               │  ┌─────────────┐   ┌──────────────────────┐   │
-│  日志源        │  │ 应用服务器   │   │  网络设备 / 容器      │   │
-│               │  └──────┬──────┘   └──────────┬───────────┘   │
-│               │         │ 文件 Tail              │ HTTP API       │
-│  采集层        │  logcollect Agent               │               │
-│               │  （断点续传 + 心跳）             ↓               │
-│               │         └──────────────→  apiserver :8086       │
-│               │                              │                  │
-│  传输层        │                         Kafka Topic             │
-│               │                              │                  │
-│               │                         logtransfer             │
-│               │                              │                  │
-│  存储层        │                    Elasticsearch 7.x            │
-│               │                    （ILM 生命周期管理）          │
-│               │                              ↑                  │
-│  管理层        │              admin :8080 (Go + Gin)             │
-│  展示层        │           Web UI (Vue 3 + Element Plus)         │
-│  告警层        │      AI Scanner → 企业微信/钉钉/邮件/Webhook     │
-└───────────────┴────────────────────────────────────────────────┘
+业务机器上的日志文件  →  logcollect Agent
+防火墙 / 路由器        →  syslog :514
+应用程序              →  HTTP /api/v1/log/push
+                              ↓
+                         apiserver
+                              ↓
+                         Kafka
+                              ↓
+                        logtransfer
+                              ↓
+                     Elasticsearch 7.x
+                              ↑
+                    admin + Web 管理后台
+                    告警按已配置的通知渠道发出
 ```
 
 ### 服务说明
 
-| 服务 | 端口 | 说明 |
-|------|------|------|
-| `admin` | **docker-compose.ha.yaml可修改** | 管理后台 API + 静态资源服务（必须启动） |
-| `apiserver` | **docker-compose.ha.yaml可修改** | 日志推送接入点（Agent 上报 + 直接投递） |
-| `logtransfer` | — | Kafka 消费者，写入 Elasticsearch |
-| `logcollect` | — | Linux/macOS Agent，部署在被采集机器上 |
-| `logcollect_win` | — | Windows Agent |
-| `syslog` | **514/UDP** | Syslog 协议接收服务（可选） |
+| 入口 | 单机 | 高可用 |
+|------|------|--------|
+| 管理页面 | `http://服务器IP`（80 端口） | 同左，由 Nginx 提供 |
+| 日志推送 | `http://服务器IP:8086/api/v1/log/push` | `http://服务器IP/api/v1/log/push`（80 端口，不要连 8086） |
+| Syslog | 服务器 IP 的 **514/UDP** 和 **514/TCP** | 同左 |
+| Agent | 装在被采集的业务机器上，不随主程序启动 | 同左 |
 
 ---
 
@@ -164,157 +157,154 @@
 
 ## 快速部署
 
-### 前置要求
+客户使用交付包，在交付目录里执行命令即可。不需要安装 Go 或 Node，也不要在客户机器上编译。CPU 可以是 x86_64 或 aarch64。使用前请准备授权码：[购买授权](https://lca.top/#pricing)。
 
-| 组件 | 版本要求 | 说明 |
-|------|---------|------|
-| Go | 1.21+ | 手动部署时需要 |
-| Node.js | 18+ | 前端开发时需要 |
-| Docker & Docker Compose | 20+ | Docker 部署时需要 |
-| MySQL | 8.0+ | 可复用已有实例 |
-| Redis | 6.0+ | 可复用已有实例 |
-| Kafka | 2.8+ | 可复用已有实例 |
-| Elasticsearch | 7.x | 推荐 7.17 |
-| 授权码 | — | [前往购买](https://lca.top/#pricing) |
+源码仓对内保密。要更新 GitHub 上的安装包时，在源码目录先 `make release`，再执行 `bash sync-deploy.sh`，把预编译产物同步到交付仓后自行 `git push`。交付仓里不应出现 `cmd` / `internal` / `web/src`。
 
----
+`make docker-up` 和 `make docker-up-ha` 会先检查本机：
 
-### 方式一：Docker Compose 高可用部署（推荐生产环境）
+1. 没有 Docker 时执行官方安装脚本并启动服务；已经安装则跳过。
+2. 把 `vm.max_map_count` 调到 `262144` 并写入 `/etc/sysctl.conf`。已经大于等于这个值则跳过。Elasticsearch 依赖这项参数，不设置会反复重启。
 
-多实例 + 自动故障转移 + 数据多副本冗余，一键启动 MySQL 主从、Redis Sentinel、Kafka 3 Broker、Elasticsearch 3 节点集群、所有后端服务（admin×2、apiserver×2、logtransfer×2）及 Nginx 负载均衡。
+这两步需要 root 或 sudo。macOS 请自行安装 Docker Desktop，脚本不会在 Mac 上改内核参数。
+
+防火墙至少放行：
+
+| 端口 | 用途 |
+|------|------|
+| 80/TCP | 管理页面。高可用时日志推送也走这个端口 |
+| 8086/TCP | 仅单机：日志推送 |
+| 514/UDP、514/TCP | 防火墙、路由器 Syslog |
+
+3306、6379、9092、9200 只在本机使用，不要对公网开放。
 
 ```bash
-# 1. 克隆代码
-git clone https://github.com/jc2255/log-collect-ai-analytics.git
-cd log-collect-ai-analytics
-
-# 2. 复制并编辑环境变量（修改数据库密码、JWT Secret 等）
 cp .env.example .env
-vim .env
+# 至少改 JWT_SECRET。生产环境同时改 MYSQL_ROOT_PASSWORD、REDIS_PASSWORD
+```
 
-# 3. 启动 HA 集群
-docker compose -f docker-compose.ha.yaml up -d
+### 单机
 
-# 4. 查看服务状态
+适合试用和日志量不大的环境。MySQL、Redis、Kafka、Elasticsearch 和各应用各一个实例。
+
+```bash
+make docker-up
+```
+
+浏览器打开 **http://服务器IP**。默认账号 `admin`，默认密码 `admin123`。登录后立即修改密码。
+
+本机自检：
+
+```bash
+curl -fsS http://127.0.0.1/health
+curl -fsS http://127.0.0.1:8086/health
+```
+
+### 高可用
+
+适合生产。压力大的链路做了冗余，其余组件保持单实例。
+
+| 组件 | 高可用里的实例 |
+|------|----------------|
+| Kafka | 3 个 Broker |
+| Elasticsearch | 3 个节点 |
+| apiserver | 2 个，由 Nginx 转发 `/api/v1/log/push` |
+| MySQL、Redis、admin、logtransfer、syslog | 各 1 个 |
+
+页面、管理接口、日志推送都从 **80** 端口进入。apiserver 不单独映射 8086。三台 Elasticsearch 会各占一份内存，机器紧张时先在 `.env` 里调 `ES_JAVA_OPTS`，再启动。
+
+这台机器上还没有 LCA 容器时：
+
+```bash
+make docker-up-ha
 docker compose -f docker-compose.ha.yaml ps
+```
 
-# 5. 查看服务日志
-docker compose -f docker-compose.ha.yaml logs -f admin1
+看日志：
+
+```bash
+docker compose -f docker-compose.ha.yaml logs -f admin
 docker compose -f docker-compose.ha.yaml logs -f apiserver1
 ```
 
-启动完成后访问：**http://your-server-ip**
+### 从单机换到高可用
 
-默认账号：`admin`  默认密码：`admin123`
+不能只停容器再启动高可用。单机和高可用的 Elasticsearch 不是同一份数据：单机用 `es_data`，高可用是全新的 `es01_data` / `es02_data` / `es03_data`。MySQL 和 Redis 却共用 `mysql_data`、`redis_data`。旧库里的日志库（例如 `monitoring`）还在，新集群里没有对应索引，日志查询就会报 `no such index`。
 
-> ⚠️ 首次使用需在「系统设置 → 授权管理」页面激活授权码
+切换时要让 MySQL、Redis 回到初始状态。镜像仍然保留。
 
-#### HA 架构详情
+```bash
+make docker-switch-ha
+make docker-up-ha
+```
 
-| 层级 | 能力 | 实现方式 |
-|------|------|----------|
-| **Redis** | 自动故障转移 | Sentinel 1主2从3哨兵 |
-| **分布式锁** | 任务互斥执行 | Redis SETNX + Lua 原子释放 |
-| **Leader Election** | 定时任务单点执行 | 续约式锁，失败自动降级 standby |
-| **Casbin 同步** | 多实例策略一致性 | Redis Pub/Sub 通知重载 |
-| **MySQL** | 读写分离 | 主库写 + 从库读，GTID 主从复制 |
-| **Kafka** | 数据多副本 | 3 Broker，`replication.factor=3` |
-| **Elasticsearch** | 数据冗余 | 3 节点集群 + 1 副本分片 |
-| **Nginx** | 负载均衡 | upstream 轮询 + 健康检查 + 故障转发 |
-| **应用层** | 水平扩展 | admin×2, apiserver×2, logtransfer×2 |
+`make docker-switch-ha` 会停掉单机和高可用的容器，并删除本项目的 MySQL、Redis 数据卷。高可用自己的 Kafka、ES 数据卷不动。授权码在 MySQL 里，启动后需要重新激活；机器 ID 还在 `data/admin`，原来的授权码可以继续用。
 
-#### HA 配置文件
-
-| 文件 | 说明 |
-|------|------|
-| `configs/admin-ha.yaml` | admin 服务 HA 配置（Sentinel + 读副本） |
-| `configs/apiserver-ha.yaml` | apiserver 服务 HA 配置 |
-| `configs/logtransfer-ha.yaml` | logtransfer 服务 HA 配置 |
-| `deploy/ha/nginx-ha.conf` | Nginx 负载均衡配置 |
-| `deploy/ha/sentinel.conf` | Redis Sentinel 配置 |
-| `deploy/ha/mysql-master.cnf` | MySQL 主库配置 |
-| `deploy/ha/mysql-slave.cnf` | MySQL 从库配置 |
+`make docker-rm` 只删容器，不会清数据库，不能用来切高可用。`make docker-clean` 会连本地镜像一起删，也不要用来切换。
 
 ---
 
-### 方式二：手动部署
+## 开始使用
 
-适合已有 MySQL / Redis / Kafka / ES 基础设施的环境。
+登录后如果弹出授权窗口，把机器 ID 复制到 [lca.top](https://lca.top) 生成授权码，粘贴后点激活。未激活时业务菜单不可用。机器 ID 写在交付目录的 `data/admin` 里，不要删这个目录，否则要重新授权。以后要看授权，点页面右上角的授权标识。
 
-#### 步骤 1：安装基础依赖
+建议按下面的顺序接日志。
 
-```bash
-# Ubuntu / Debian
-apt-get update
-apt-get install -y mysql-server redis-server
+### 1. 先建日志库
 
-# 安装 Kafka（确保已安装 Java 11+）
-wget https://downloads.apache.org/kafka/3.6.0/kafka_2.13-3.6.0.tgz
-tar -xzf kafka_2.13-3.6.0.tgz
-cd kafka_2.13-3.6.0
+打开「日志管理 → 日志库」，新建一个库，记下名称和 API Key。文件采集、Syslog、HTTP 推送都靠这把 Key 决定日志进哪个库。
 
-# 启动 Kafka（需先启动 Zookeeper）
-bin/zookeeper-server-start.sh -daemon config/zookeeper.properties
-bin/kafka-server-start.sh -daemon config/server.properties
-```
+### 2. 选一种方式把日志送进来
 
-#### 步骤 2：初始化数据库
+三种可以同时用。
+
+**服务器上的文件。** 打开「系统监控 → 服务监控」，在 Agent 一键部署里选本机、内网或外网，把命令复制到目标机器执行。Linux、macOS、Windows 都可以，安装的是交付包里的预编译程序。再到「日志采集 → 采集任务」填写真实路径，例如 `/var/log/nginx/*.log`。路径里如果写成字面量 `Y-M-D`，一个文件都匹配不到。任务详情里可以看到有没有在采集、路径是否匹配、当前速率。
+
+**防火墙和路由器。** 在设备上把 Syslog 服务器填成 LCA 这台机器的 IP，端口 `514`，协议 UDP 或 TCP。回到「服务监控」，打开 `lca-syslog` 详情，按主机名把每台设备分到日志库并保存。同一来源 IP 下主机名不同会分成多台；设备在 NAT 后面时经常是这样。每台设备有独立 IP 时，来源 IP 也会分开。
+
+**应用程序直接推送。** 单机、并且命令就在 LCA 这台机器上执行时：
 
 ```bash
-mysql -u root -p <<EOF
-CREATE DATABASE IF NOT EXISTS lca DEFAULT CHARACTER SET utf8mb4;
-CREATE USER IF NOT EXISTS 'lca'@'%' IDENTIFIED BY 'lca2024';
-GRANT ALL PRIVILEGES ON lca.* TO 'lca'@'%';
-FLUSH PRIVILEGES;
-EOF
+curl -X POST 'http://127.0.0.1:8086/api/v1/log/push' \
+  -H 'Content-Type: application/json' \
+  -d '{
+    "api_key": "日志库的 API Key",
+    "logs": [
+      { "message": "hello from curl", "level": "INFO" }
+    ]
+  }'
 ```
 
-> 数据库表结构由程序启动时 **自动 AutoMigrate** 创建，无需手动执行 SQL。
+别的机器推到单机时，把地址换成 `http://服务器IP:8086/api/v1/log/push`。高可用没有对外的 8086，改成 `http://服务器IP/api/v1/log/push`。
 
-#### 步骤 3：编译项目
+`lca-apiserver` 只在 Docker 网络内部能解析。在宿主机或业务机器上用这个名字会失败。服务监控里 `lca-apiserver` 详情中的 curl 已经是宿主机地址，选好日志库后直接复制。
 
-```bash
-# 编译所有服务
-go build -o bin/admin       ./cmd/admin
-go build -o bin/apiserver   ./cmd/apiserver
-go build -o bin/logtransfer ./cmd/logtransfer
-go build -o bin/logcollect  ./cmd/logcollect
+成功时返回 `"code": 0`。返回里的 `trace_id` 可以用来追查这条日志走到了哪一步。
 
-# 编译前端（生产构建）
-cd web
-npm install
-npm run build
-# 构建产物在 web/dist/，由 admin 服务托管静态资源
-cd ..
-```
+### 3. 到日志查询里确认
 
-#### 步骤 4：修改配置文件
+打开「日志管理 → 日志查询」，日志库选刚才接入的那一个，时间选今天。查询会同时看该库的当前索引和按天滚动的索引。
 
-```bash
-# 根据实际环境修改（MySQL / Redis / Kafka / ES 地址和密码）
-vim configs/admin.yaml
-vim configs/apiserver.yaml
-vim configs/logtransfer.yaml
-```
+### 4. 看服务是否在消费
 
-#### 步骤 5：依次启动各服务
+「系统监控 → 服务监控」：
 
-```bash
-# 建议使用 systemd / supervisord / screen 等方式后台运行
+- `lca-apiserver`：接入是否正常，详情里有可复制的 curl。
+- `lca-syslog`：哪些设备已连接，各自进哪个日志库。
+- `lca-logtransfer`：每个日志库是否在消费、积压多少。有积压但速率为 0 时，先看这里的原因。
+- `logcollect`：Agent 在线数量。离线时用同一页的部署命令重新安装。
 
-# 管理后台（必须第一个启动，负责 AutoMigrate 和初始化数据）
-./bin/admin -config configs/admin.yaml
+### 5. 再配告警和备份
 
-# 日志接入服务
-./bin/apiserver -config configs/apiserver.yaml
+先到「告警管理 → 通知渠道管理」配好企业微信、钉钉、飞书、邮件、Webhook 或阿里云短信，并用测试按钮确认能发出去。告警规则、日志库上的 AI 告警、Agent 离线通知只选择渠道。
 
-# Kafka→ES 传输服务
-./bin/logtransfer -config configs/logtransfer.yaml
-```
+备份在「备份管理」。策略保存后到「备份任务」看进度和结果。本地备份的文件在 Elasticsearch 容器内的 `/data/backups/仓库名`。执行时间按 Linux 五段 cron 填写，例如每天凌晨 2 点是 `0 2 * * *`。
 
 ---
 
 ## 各服务启动说明
+
+客户环境用 `make docker-up` 或 `make docker-up-ha`，不需要按下面的顺序手工拉起进程。这段用来对照某个容器没起来时，它依赖谁。
 
 ### 推荐启动顺序
 
@@ -326,7 +316,9 @@ vim configs/logtransfer.yaml
 5. logcollect     ← 采集 Agent（部署在各业务机器上）
 ```
 
-### 使用 systemd 托管（推荐生产环境）
+### 使用 systemd 托管
+
+不用 Docker、要自己托管进程时才需要。生产环境优先用上面的 Docker 命令。
 
 以 `admin` 服务为例：
 
@@ -357,9 +349,18 @@ systemctl status lca-admin
 
 ### 健康检查接口
 
+单机：
+
 ```bash
-curl http://localhost:8080/health   # admin
-curl http://localhost:8086/health   # apiserver
+curl -fsS http://127.0.0.1/health          # 页面入口
+curl -fsS http://127.0.0.1:8080/health     # admin
+curl -fsS http://127.0.0.1:8086/health     # apiserver
+```
+
+高可用的页面和日志推送都在 80 端口，admin、apiserver 没有映射到宿主机：
+
+```bash
+curl -fsS http://127.0.0.1/health
 ```
 
 ---
@@ -428,140 +429,62 @@ api_key: "ak_your_logstore_xxx"            # 日志库的 API Key（在日志库
 agent_id: "server-prod-001"               # 当前机器的唯一标识
 batch_size: 50                             # 批量发送条数
 flush_seconds: 5                           # 最大积攒秒数（超时强制发送）
-push_concurrency: 5        # 推送并发数，默认5，可根据apiserver承受能力调大/调小
-hostname: ""               # 必填！填写宿主机真实 hostname，确保管理后台能匹配
 ```
 
 ---
 
 ## Agent 部署
 
-### Linux / macOS
+采集程序装在业务机器上，不在 LCA 的 Docker 里。
 
-```bash
-# 从 GitHub 下载预编译二进制
-wget https://github.com/jc2255/log-collect-ai-analytics/raw/main/release/bin/logcollect -O logcollect
-chmod +x logcollect
+1. 管理后台打开「系统监控 → 服务监控」。
+2. 在「Agent 一键部署」选择网络：业务机和 LCA 在同一台机器上选「本机」；在同一内网选「内网其它机器」并确认 IP；在公网选「外网」。
+3. 选择 Linux 或 Windows。Linux 再选 amd64 或 arm64，macOS 会在脚本里自动识别。
+4. 把命令复制到目标机器执行。脚本从本平台下载预编译程序，不需要源码。Linux 会注册成 systemd 服务 `lca-agent`：进程退出后自动重启，开机也会自启。macOS 没有 systemd，只会后台启动。
+5. 回到「日志采集 → 采集任务」添加任务。路径用真实 glob，例如 `/var/log/app/*.log`。
+6. 在任务详情里确认「正在采集」。若显示路径未匹配，改路径后再等约 60 秒，Agent 会自己拉新任务。
 
-# 创建工作目录
-mkdir -p /opt/lca-agent && mv logcollect /opt/lca-agent/
-
-# 创建配置文件
-cat > /opt/lca-agent/logcollect.yaml <<'EOF'
-api_server: "http://localhost"
-admin_server: "http://localhost"
-agent_id: "web-server-01"
-batch_size: 50
-flush_seconds: 5
-hostname: "" 
-EOF
-
-# 启动（前台调试）
-cd /opt/lca-agent && ./logcollect -config logcollect.yaml
-
-# 后台守护进程
-nohup /opt/lca-agent/logcollect -config /opt/lca-agent/logcollect.yaml > /var/log/lca-agent.log 2>&1 &
-```
-
-### Windows
-
-```powershell
-# 从 GitHub 下载预编译二进制
-Invoke-WebRequest -Uri "https://github.com/jc2255/log-collect-ai-analytics/raw/main/release/bin/logcollect.exe" -OutFile "C:\lca-agent\logcollect.exe"
-
-# 创建配置文件 C:\lca-agent\logcollect.yaml（内容同上）
-
-# 启动
-C:\lca-agent\logcollect.exe -config C:\lca-agent\logcollect.yaml
-
-# 注册为 Windows 服务（使用 NSSM）
-nssm install LCACollect "C:\lca-agent\logcollect.exe" "-config C:\lca-agent\logcollect.yaml"
-nssm start LCACollect
-```
+Agent 超过约 3 分钟没有心跳会标成离线。离线通知在 Agent 管理里选择已建好的通知渠道。
 
 ---
 
-## Syslog 部署
+## Syslog
 
-### Linux / macOS
+防火墙、路由器不要再单独装一套接收程序。`make docker-up` 或 `make docker-up-ha` 已经在宿主机 **514** 上听 UDP 和 TCP。
+
+1. 设备的 Syslog 服务器填 LCA 机器的 IP，端口 `514`。
+2. 打开「系统监控 → 服务监控 → lca-syslog」。
+3. 在已连接设备里按主机名选择日志库，点保存。
+4. 到「日志查询」选这个日志库，时间选今天。
+
+同一来源 IP 上，报文主机名不同就是不同设备，可以分到不同日志库。没单独保存过的设备，沿用这个 IP 上已经保存的分配。
+
+模拟多台设备可以在 LCA 机器上执行：
 
 ```bash
-# 从 GitHub 下载预编译二进制
-wget https://github.com/jc2255/log-collect-ai-analytics/raw/main/release/bin/syslog -O syslog
-chmod +x syslog
-
-# 创建工作目录
-mkdir -p /opt/syslog && mv syslog /opt/syslog/
-
-# 创建配置文件
-cat > /opt/syslog/syslog.yaml <<'EOF'
-udp_port: 514
-tcp_port: 514
-api_server: "http://127.0.0.1"
-timezone: "Asia/Shanghai"
-batch_size: 50
-flush_seconds: 3
-
-# 日志配置
-log_level: "info"
-log_file: "/opt/syslog/logs/syslog.log"
-
-routes:
-  - match: ""
-    api_key: "ak_nginx_001"
-
-  # 安全策略日志 → fw-security 日志库
-  - match: "security:"
-    api_key: "ak_security_003"
-
-  # 流量日志 → fw-traffic 日志库
-  - match: "traffic:"
-    api_key: "ak_nginx_001"
-
-  # VPN 日志 → 也走安全日志库
-  - match: "vpn:"
-    api_key: "ak_nginx_001"
-
-  # 兜底：所有其他 360 日志 → fw-system
-  - match: "360Firewall"
-    api_key: "ak_nginx_001"
-
-EOF
-
-# 启动（前台调试）
-cd /opt/syslog && ./syslog -config syslog.yaml
-
-# 后台守护进程
-nohup /opt/syslog/syslog -config /opt/syslog/syslog.yaml > /var/log/syslog.log 2>&1 &
+bash scripts/simulate-syslog.sh
 ```
 
-### 采集任务配置
-
-Agent 启动后，在管理后台「日志采集 → 采集任务」中添加任务：
-
-| 字段 | 说明 | 示例 |
-|------|------|------|
-| 绑定 Agent | 指定由哪台 Agent 执行（0=全部 Agent） | `web-server-01` |
-| 日志库 | 日志写入哪个日志库 | `app-nginx` |
-| 路径模式 | 支持 Glob 通配符 | `/var/log/nginx/*.log` |
-| 解析模式 | raw / json / regex / delimiter | `raw` |
-| 多行合并 | Java 堆栈等多行日志的合并正则 | `^\d{4}-\d{2}-\d{2}` |
-
-Agent 每 **60 秒**自动从 admin 拉取最新任务，无需重启即可生效。
+从本机打进 Docker 时，来源 IP 通常是网桥地址，四台设备会显示成同一个 IP、四个主机名。这是正常现象。
 
 ---
 
 ## API 直接投递日志
 
-无需部署 Agent，任意应用通过 HTTP API 直接推送日志，适合：
-- 容器化应用（Sidecar 模式）
-- 无法安装 Agent 的场景
-- SDK 集成、Logstash / Fluentd 对接
+不装 Agent 时，应用用 HTTP 把日志推进来。地址按部署方式选，不要用容器名 `lca-apiserver`。
+
+| 谁在推 | 地址 |
+|--------|------|
+| 单机，命令在 LCA 本机执行 | `http://127.0.0.1:8086/api/v1/log/push` |
+| 单机，别的机器来推 | `http://服务器IP:8086/api/v1/log/push` |
+| 高可用 | `http://服务器IP/api/v1/log/push` |
+
+管理后台「服务监控 → lca-apiserver → 详情」里有带好 API Key 的 curl，优先复制那里的命令。
 
 ### 接口说明
 
 ```
-POST http://your-apiserver/api/v1/log/push
+POST /api/v1/log/push
 Content-Type: application/json
 X-Trace-Id: <16位 hex>      // 可选，不传服务端会自动生成
 
@@ -593,7 +516,6 @@ X-Trace-Id: <16位 hex>      // 可选，不传服务端会自动生成
 - `_source_ip`：推送方 IP
 - `_store_name`：日志库名称
 - `_trace_id`：全链路追踪 ID（便于事后 ES 检索）
-- `_log_id`：日志幂等
 
 ---
 
@@ -602,7 +524,7 @@ X-Trace-Id: <16位 hex>      // 可选，不传服务端会自动生成
 #### 1. 推送单条原始日志
 
 ```bash
-curl -X POST http://localhost/api/v1/log/push \
+curl -X POST http://127.0.0.1:8086/api/v1/log/push \
   -H "Content-Type: application/json" \
   -d '{
     "api_key": "ak_app-nginx_a1b2c3d4",
@@ -619,7 +541,7 @@ curl -X POST http://localhost/api/v1/log/push \
 #### 2. 批量推送多条日志
 
 ```bash
-curl -X POST http://localhost/api/v1/log/push \
+curl -X POST http://127.0.0.1:8086/api/v1/log/push \
   -H "Content-Type: application/json" \
   -d '{
     "api_key": "ak_app-nginx_a1b2c3d4",
@@ -650,7 +572,7 @@ curl -X POST http://localhost/api/v1/log/push \
 #### 3. 推送结构化 JSON 日志（Java / Go / Python 应用）
 
 ```bash
-curl -X POST http://localhost/api/v1/log/push \
+curl -X POST http://127.0.0.1:8086/api/v1/log/push \
   -H "Content-Type: application/json" \
   -d '{
     "api_key": "ak_app-backend_b5c6d7e8",
@@ -663,8 +585,7 @@ curl -X POST http://localhost/api/v1/log/push \
         "thread": "http-nio-8080-exec-3",
         "traceId": "abc123def456",
         "userId": 1001,
-        "exception": "java.sql.SQLException: Timeout waiting for connection from pool",
-        "_log_id":"1781251982861509301幂等"
+        "exception": "java.sql.SQLException: Timeout waiting for connection from pool"
       }
     ]
   }'
@@ -674,7 +595,7 @@ curl -X POST http://localhost/api/v1/log/push \
 
 ```bash
 # 假设 Nginx 配置了 JSON 格式日志
-curl -X POST http://localhost/api/v1/log/push \
+curl -X POST http://127.0.0.1:8086/api/v1/log/push \
   -H "Content-Type: application/json" \
   -d '{
     "api_key": "ak_app-nginx_a1b2c3d4",
@@ -687,8 +608,7 @@ curl -X POST http://localhost/api/v1/log/push \
         "body_bytes_sent": 1234,
         "request_time": 0.125,
         "http_user_agent": "Mozilla/5.0",
-        "http_referer": "https://example.com",
-        "_log_id":"1781251982861509301幂等"
+        "http_referer": "https://example.com"
       }
     ]
   }'
@@ -708,12 +628,14 @@ curl -X POST http://localhost/api/v1/log/push \
 
 ---
 
+下面示例按单机来写。高可用把地址换成 `http://服务器IP/api/v1/log/push`。
+
 ### Shell 脚本持续推送示例
 
 ```bash
 #!/bin/bash
 # 实时推送应用日志到 LCA
-API_URL="http://localhost/api/v1/log/push"
+API_URL="http://127.0.0.1:8086/api/v1/log/push"
 API_KEY="ak_app-backend_b5c6d7e8"
 LOG_FILE="/var/log/app/app.log"
 
@@ -735,7 +657,7 @@ import requests
 import json
 from datetime import datetime, timezone
 
-LCA_URL = "http://localhost/api/v1/log/push"
+LCA_URL = "http://127.0.0.1:8086/api/v1/log/push"
 API_KEY = "ak_app-backend_b5c6d7e8"
 
 def push_log(level: str, message: str, **extra):
@@ -768,7 +690,7 @@ push_log("ERROR", "Database connection failed", service="user-service", retry=3)
 ```ruby
 output {
   http {
-    url    => "http://localhost/api/v1/log/push"
+    url    => "http://127.0.0.1:8086/api/v1/log/push"
     format => "json"
     http_method => "post"
     mapping => {
@@ -796,16 +718,20 @@ output {
 | LLM API Key | 大模型 API 密钥 | `sk-xxx` |
 | LLM Base URL | API 地址（OpenAI 兼容格式） | `https://api.deepseek.com/v1` |
 | 静默期 | 同一日志库告警后多少分钟内不再重复告警 | `60` |
-| 通知渠道 | 企业微信 / 钉钉 / 邮件 / Webhook | 见下表 |
+| 通知渠道 | 在「告警管理 → 通知渠道管理」里先建好，这里只选择 | 企业微信、钉钉、飞书、邮件、Webhook、阿里云短信 |
 
 ### 通知渠道配置
+
+渠道只在「告警管理 → 通知渠道管理」里维护。告警规则、日志库 AI 告警、Agent 离线通知都是选择已有渠道。
 
 | 渠道 | 需要的参数 |
 |------|-----------|
 | 企业微信机器人 | Webhook URL |
 | 钉钉机器人 | Webhook URL |
-| 邮件 | SMTP服务器、端口、账号、密码、收件人 |
-| 自定义 Webhook | Webhook URL |
+| 飞书机器人 | Webhook URL |
+| 邮件 | SMTP 服务器、端口、账号、密码、收件人 |
+| 自定义 Webhook | URL |
+| 阿里云短信 | AccessKey、签名、模板。短信内容对应模板变量，注意长度限制 |
 
 **邮件配置说明：**
 - QQ邮箱：`smtp.qq.com`，端口 `465`（SSL），密码为授权码
@@ -823,14 +749,7 @@ output {
 
 ### Agent 离线通知
 
-当 Agent 超过 3 分钟没有心跳时，系统会：
-1. 自动将 Agent 状态标记为**离线**
-2. 在「告警历史」中写入告警记录
-3. 发送**邮件通知**给超级管理员（`admin` 账号）
-
-**前提条件：**
-- 超级管理员在「个人中心」填写了邮箱
-- 在任意一个日志库的 AI 告警中已配置了邮件（SMTP）通知渠道
+当 Agent 超过约 3 分钟没有心跳时，系统会把该 Agent 标成离线，并在「告警历史」里留下记录。要收到通知，先在「告警管理 → 通知渠道管理」建好渠道，再在 Agent 管理的离线通知里选中这些渠道。
 
 ---
 
@@ -840,11 +759,10 @@ output {
 
 ### 激活步骤
 
-1. 部署并启动 admin 服务后，进入「系统设置 → 授权管理」
-2. 页面显示当前机器的**指纹码**（基于 CPU 序列号、MAC 地址等生成）
-3. 前往 [lca.top](https://lca.top) 购买授权码，提交机器指纹
-4. 将收到的授权码粘贴到激活框，点击「激活」
-5. 激活成功后系统功能全部解锁
+1. 用 `admin` / `admin123` 登录。未激活时会直接弹出授权窗口；已激活后点右上角授权标识。
+2. 复制窗口里的机器 ID，到 [lca.top](https://lca.top) 生成授权码。
+3. 把授权码粘贴到输入框，点「激活授权码」。
+4. 机器 ID 保存在交付目录的 `data/admin`。迁移服务器时带上这个目录，或在新机器上重新申请授权码。
 
 ### 版本说明
 
@@ -978,9 +896,6 @@ docker compose -f docker-compose.ha.yaml up -d --force-recreate <service>
 
 ## 更新日志
 
-### v1.3.4
-- 修复了授权码月付用户到期无法解绑的问题，旧版本用户请升级到v1.3.4的版本，新增了AI样本分析，日志采集过滤等功能。
-
 ### v1.3.1
 - 新增**全链路 trace_id 追踪**：agent → apiserver → Kafka → logtransfer → ES 同一条日志共享一个 `X-Trace-Id`，后续问题定位只需提供该 ID
 - HTTP 响应体 / Header / Kafka Header / ES `_trace_id` 字段多点透传
@@ -989,7 +904,7 @@ docker compose -f docker-compose.ha.yaml up -d --force-recreate <service>
 - logtransfer flush 日志从 debug 升为 info，默认可见
 
 ### v1.3.0
-- 新增高可用（HA）部署模式：Redis Sentinel 自动故障转移、MySQL 主从读写分离、Kafka 3 Broker 集群、ES 3 节点集群
+- 新增高可用部署：Kafka 3 Broker、Elasticsearch 3 节点、apiserver 双实例，入口由 Nginx 转发。MySQL、Redis、admin、logtransfer、syslog 仍是单实例
 - 新增分布式锁（Redis SETNX + Lua），保障多实例下定时任务互斥执行
 - 新增 Leader Election 机制，AI 告警调度器、Agent 离线检测自动主备切换
 - 新增 Casbin 策略多实例同步（Redis Pub/Sub），权限变更实时生效
@@ -1022,12 +937,6 @@ docker compose -f docker-compose.ha.yaml up -d --force-recreate <service>
   <p>
     <a href="https://lca.top">官网</a> ·
     <a href="https://lca.top/#pricing">购买授权</a> ·
-    <a href="mailto:support@lca.top">联系我们</a>
+    <a href="mailto:1684350829@qq.com">联系我们</a>
   </p>
 </div>
-
----
-
-## 加入微信群
-
-![微信群](images/wxq.jpg)

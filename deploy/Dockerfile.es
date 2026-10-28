@@ -1,8 +1,13 @@
-FROM ccr.ccs.tencentyun.com/lcalog/es:7.10
+# 可选：在官方 ES 镜像上安装阿里云 repository-oss 插件（OSS 快照备份用）
+# 默认 HA/单机 compose 直接使用官方镜像，不走本 Dockerfile。
+#
+# 用法：
+#   1. 从 https://github.com/aliyun/elasticsearch-repository-oss/releases
+#      下载与 ES 版本一致的插件包到 deploy/es/
+#   2. 修改下方 COPY 文件名后：
+#      docker compose -f docker-compose.ha.yaml build es01
+FROM docker.elastic.co/elasticsearch/elasticsearch:7.17.25
 
-# 离线安装阿里云官方 repository-oss 插件（type=oss，AK/SK 直接放 settings，无需 keystore）
-# 插件包必须与 ES 版本严格一致；下载地址：
-#   https://github.com/aliyun/elasticsearch-repository-oss/releases
-COPY deploy/es/elasticsearch-repository-oss-7.10.0.zip /tmp/oss-plugin.zip
-RUN elasticsearch-plugin install --batch file:///tmp/oss-plugin.zip \
-    && rm -f /tmp/oss-plugin.zip
+# COPY deploy/es/elasticsearch-repository-oss-<ver>.zip /tmp/oss-plugin.zip
+# RUN elasticsearch-plugin install --batch file:///tmp/oss-plugin.zip \
+#     && rm -f /tmp/oss-plugin.zip

@@ -68,3 +68,14 @@ ai:
   model: "deepseek-v4-flash"
   max_tokens: 40960
   temperature: 0.3
+services:
+  apiserver_url: "http://lca-apiserver1:8086"
+  syslog_health_url: "http://lca-syslog:8087"
+  logtransfer_url: "http://lca-logtransfer:8088"
+  local_admin_url: "http://127.0.0.1:80"
+  local_api_url: "http://127.0.0.1:80"
+  internal_admin_url: "http://192.168.1.10"
+  internal_api_url: "http://192.168.1.10"
+  public_admin_url: ""
+  public_api_url: ""
+  syslog_host_port: 514

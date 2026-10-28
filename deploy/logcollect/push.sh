@@ -17,23 +17,34 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 cd "$SCRIPT_DIR"
 BINARY_NAME="logcollect"
-BINARY_SRC="${SCRIPT_DIR}/../../release/bin/${BINARY_NAME}"
+ROOT_DIR="$(cd "${SCRIPT_DIR}/../.." && pwd)"
 
 # ---------- 颜色输出 ----------
 RED='\033[0;31m'; GREEN='\033[0;32m'; CYAN='\033[0;36m'; NC='\033[0m'
 
-# ---------- 确保二进制已编译 ----------
+# ---------- 架构检测 ----------
+map_goarch() {
+    case "$1" in
+        x86_64|amd64) echo amd64 ;;
+        aarch64|arm64) echo arm64 ;;
+        *) return 1 ;;
+    esac
+}
+
+# ---------- 确保目标架构二进制已编译 ----------
 ensure_binary() {
-    if [ ! -f "$BINARY_SRC" ]; then
-        echo -e "${CYAN}>> 编译 Linux 版本...${NC}"
-        cd "$(dirname "$SCRIPT_DIR")/.."
-        CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -o release/bin/logcollect ./cmd/logcollect
-        cd "$SCRIPT_DIR"
+    local arch="${1:-}"
+    if [ -z "$arch" ]; then
+        arch="$(bash "$ROOT_DIR/scripts/goarch.sh")"
+    fi
+    local src="$ROOT_DIR/release/bin/${arch}/${BINARY_NAME}"
+    if [ ! -f "$src" ]; then
+        echo -e "${CYAN}>> 编译 Linux/${arch} ...${NC}"
+        mkdir -p "$ROOT_DIR/release/bin/${arch}"
+        (cd "$ROOT_DIR" && CGO_ENABLED=0 GOOS=linux GOARCH="$arch" go build -o "release/bin/${arch}/${BINARY_NAME}" ./cmd/logcollect)
         echo -e "${GREEN}>> 编译完成${NC}"
     fi
-    if [ ! -f "$BINARY_NAME" ]; then
-        cp "$BINARY_SRC" "$BINARY_NAME"
-    fi
+    cp -f "$src" "$SCRIPT_DIR/$BINARY_NAME"
 }
 
 # ---------- SSH 参数 ----------
@@ -47,6 +58,17 @@ push_single() {
     echo -e "${CYAN}========================================${NC}"
     echo -e "${CYAN}  推送至: $target → $remote_dir${NC}"
     echo -e "${CYAN}========================================${NC}"
+
+    # 探测远端架构并准备对应二进制
+    local remote_m
+    remote_m="$(ssh $SSH_OPTS "$target" "uname -m")"
+    local remote_arch
+    if ! remote_arch="$(map_goarch "$remote_m")"; then
+        echo -e "${RED}>> 远端架构不支持: $remote_m${NC}" >&2
+        return 1
+    fi
+    echo -e "${CYAN}>> 远端架构: $remote_m → $remote_arch${NC}"
+    ensure_binary "$remote_arch"
 
     # 1. 创建远端目录
     ssh $SSH_OPTS "$target" "mkdir -p $remote_dir"
@@ -89,8 +111,6 @@ push_multi() {
 }
 
 # ---------- 主流程 ----------
-ensure_binary
-
 if [ $# -eq 0 ]; then
     echo "用法:"
     echo "  bash push.sh root@192.168.1.10              # 推送到单台"

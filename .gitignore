@@ -1,59 +1,13 @@
-# ===== 源码（商业软件，不开源）=====
-/cmd/
-/internal/
-/web/src/
-
-# release/ 目录下的编译产物（主动追踪，勿忽略）
-# release/bin/   ← Linux/Windows 预编译二进制
-# release/web-dist/  ← 前端构建产物
-
-# 二进制（仅忽略根目录下的）
-/bin/
-/admin
-/apiserver
-/logtransfer
-/logcollect_agent
-/logcollect
-/syslog_server
-
-# 依赖
+.env
+data/
+logs/
+*.log
+.DS_Store
+bin/
+cmd/
+internal/
+keys/
+web/src/
 web/node_modules/
 web/dist/
-vendor/
-
-# IDE
-.idea/
-.vscode/
-.qoder/
-*.swp
-*.swo
-
-# 环境
-.env
-*.log
-
-# OS
-.DS_Store
-Thumbs.db
-
-# 数据
-/data/
-
-# 官网
-/lca_web/
-/lca_web_staging/
-/lca_web_patch/
-
-# 密钥（私钥不入库）
-keys/private.pem
-keys/*.p12
-
-# 本地配置（含API密钥，不入库）
-configs/admin.yaml
-configs/admin-docker.yaml
-
-# 测试日志
-/tmp/lca-test-logs/
-
-# 产品文档（仅本地保留）
-/docs/
+**/__pycache__/

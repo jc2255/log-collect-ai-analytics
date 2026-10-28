@@ -148,6 +148,8 @@ CREATE TABLE IF NOT EXISTS `log_stores` (
   `roll_max_size_gb` bigint DEFAULT '0' COMMENT '滚动最大容量GB(0不限)',
   `cold_days` bigint DEFAULT '0' COMMENT '冷存储天数(0不限)',
   `delete_days` bigint DEFAULT '90' COMMENT '删除数据天数',
+  `local_backup_enabled` tinyint(1) DEFAULT '0' COMMENT '是否启用本地快照备份',
+  `local_repository` varchar(200) COLLATE utf8mb4_unicode_ci DEFAULT 'lca_local_backup' COMMENT '本地快照仓库名',
   `oss_repository` varchar(200) COLLATE utf8mb4_unicode_ci DEFAULT NULL COMMENT 'OSS仓库名称',
   `oss_endpoint` varchar(300) COLLATE utf8mb4_unicode_ci DEFAULT NULL COMMENT 'OSS Endpoint',
   `oss_bucket` varchar(200) COLLATE utf8mb4_unicode_ci DEFAULT NULL COMMENT 'OSS Bucket名称',
@@ -291,7 +293,7 @@ CREATE TABLE IF NOT EXISTS `snapshot_records` (
   `end_time` varchar(50) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
   `duration_ms` bigint DEFAULT NULL,
   PRIMARY KEY (`id`),
-  UNIQUE KEY `idx_snapshot_records_snapshot_name` (`snapshot_name`),
+  UNIQUE KEY `idx_snap_repo` (`snapshot_name`,`repository`),
   KEY `idx_snapshot_records_deleted_at` (`deleted_at`),
   KEY `idx_snapshot_records_repository` (`repository`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
@@ -419,6 +421,33 @@ CREATE TABLE IF NOT EXISTS `agent_operation_logs` (
   KEY `idx_agent_operation_logs_agent_id` (`agent_id`),
   KEY `idx_agent_operation_logs_skill_id` (`skill_id`),
   KEY `idx_agent_operation_logs_operator_id` (`operator_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- -------------------- Fail2ban 封禁台账 --------------------
+
+CREATE TABLE IF NOT EXISTS `banned_ips` (
+  `id` bigint unsigned NOT NULL AUTO_INCREMENT,
+  `created_at` datetime(3) DEFAULT NULL,
+  `updated_at` datetime(3) DEFAULT NULL,
+  `ip` varchar(64) COLLATE utf8mb4_unicode_ci NOT NULL COMMENT '被封禁的来源IP',
+  `store_name` varchar(100) COLLATE utf8mb4_unicode_ci DEFAULT NULL COMMENT '触发封禁的日志库',
+  `agent_id` bigint unsigned DEFAULT NULL COMMENT '执行封禁的Agent',
+  `agent_name` varchar(100) COLLATE utf8mb4_unicode_ci DEFAULT NULL COMMENT 'Agent名称',
+  `attack_type` varchar(50) COLLATE utf8mb4_unicode_ci DEFAULT NULL COMMENT '攻击类型',
+  `reason` varchar(500) COLLATE utf8mb4_unicode_ci DEFAULT NULL COMMENT '封禁原因',
+  `fail_count` bigint DEFAULT '0' COMMENT '窗口内失败次数',
+  `confidence` varchar(20) COLLATE utf8mb4_unicode_ci DEFAULT NULL COMMENT 'AI判定置信度',
+  `banned_at` datetime(3) DEFAULT NULL COMMENT '封禁时间',
+  `expire_at` datetime(3) DEFAULT NULL COMMENT '到期时间,NULL表示永久',
+  `status` varchar(20) COLLATE utf8mb4_unicode_ci DEFAULT 'banned' COMMENT 'banned/unbanned',
+  `ban_op_log_id` bigint unsigned DEFAULT NULL COMMENT '封禁操作日志ID',
+  `unban_op_log_id` bigint unsigned DEFAULT NULL COMMENT '解封操作日志ID',
+  PRIMARY KEY (`id`),
+  KEY `idx_banned_ips_ip` (`ip`),
+  KEY `idx_banned_ips_store_name` (`store_name`),
+  KEY `idx_banned_ips_agent_id` (`agent_id`),
+  KEY `idx_banned_ips_status` (`status`),
+  KEY `idx_banned_ips_expire_at` (`expire_at`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- -------------------- MCP服务与定时任务 --------------------
@@ -689,7 +718,8 @@ INSERT IGNORE INTO `menus` (`id`,`created_at`,`updated_at`,`deleted_at`,`parent_
 (82,NOW(),NOW(),NULL,8,'多维分析','/analytics/dashboard','','DataAnalysis',2,1,'C',1,'analytics:dashboard:view',''),
 -- 告警管理子菜单
 (91,NOW(),NOW(),NULL,9,'告警规则','/alert/rules','','Setting',1,1,'C',1,'alert:rule:list',''),
-(92,NOW(),NOW(),NULL,9,'告警历史','/alert/history','','Document',2,1,'C',1,'alert:history:list','');
+(92,NOW(),NOW(),NULL,9,'告警历史','/alert/history','','Document',2,1,'C',1,'alert:history:list',''),
+(93,NOW(),NOW(),NULL,9,'封禁台账','/alert/banned','','Lock',3,1,'C',1,'alert:banned:manage','');
 
 -- 角色
 INSERT IGNORE INTO `roles` (`id`,`created_at`,`updated_at`,`deleted_at`,`name`,`code`,`description`,`sort`,`status`) VALUES
@@ -722,11 +752,11 @@ INSERT IGNORE INTO `role_menus` (`role_id`,`menu_id`) VALUES
 (1,61),(1,62),(1,63),
 (1,71),
 (1,81),(1,82),
-(1,91),(1,92),
+(1,91),(1,92),(1,93),
 (1,101),
 -- 运维：日志+备份+采集+AI+数据分析+告警
 (2,4),(2,5),(2,6),(2,7),(2,8),(2,9),
-(2,41),(2,42),(2,51),(2,52),(2,61),(2,62),(2,63),(2,71),(2,81),(2,82),(2,91),(2,92),
+(2,41),(2,42),(2,51),(2,52),(2,61),(2,62),(2,63),(2,71),(2,81),(2,82),(2,91),(2,92),(2,93),
 -- 开发：日志查询+告警历史+数据分析
 (3,4),(3,8),(3,9),(3,42),(3,81),(3,82),(3,92),
 -- 测试：日志查询

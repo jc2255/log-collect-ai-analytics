@@ -1,5 +1,6 @@
 udp_port: 514
 tcp_port: 514
+health_port: 8087
 api_server: "http://lca-nginx-ha"
 timezone: "Asia/Shanghai"
 batch_size: 50

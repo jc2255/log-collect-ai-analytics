@@ -1,12 +1,14 @@
 # 使用预编译二进制，不依赖源码
-# 通过 APP_NAME 参数指定要运行的服务（admin / apiserver / logtransfer / syslog）
+# TARGETARCH 由 BuildKit / compose build-arg 注入（amd64 | arm64），不要写死默认 amd64
+# 构建前: make ensure-binaries  或  bash scripts/ensure-binaries.sh
 
 ARG APP_NAME=admin
+ARG TARGETARCH
 
 FROM docker.m.daocloud.io/library/alpine:3.19
 
-# 重新声明 ARG（FROM 之后 ARG 作用域重置）
 ARG APP_NAME
+ARG TARGETARCH
 
 RUN apk add --no-cache ca-certificates tzdata curl \
     && cp /usr/share/zoneinfo/Asia/Shanghai /etc/localtime \
@@ -14,8 +16,8 @@ RUN apk add --no-cache ca-certificates tzdata curl \
 
 WORKDIR /app
 
-# 从预编译产物目录复制对应服务的二进制
-COPY release/bin/${APP_NAME} ./server
+# 按构建目标架构复制二进制（release/bin/amd64|arm64/<app>）
+COPY release/bin/${TARGETARCH}/${APP_NAME} ./server
 RUN chmod +x ./server
 
 EXPOSE 8080 8086 514

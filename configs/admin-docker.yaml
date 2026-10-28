@@ -63,3 +63,17 @@ ai:
   model: "deepseek-v4-flash"
   max_tokens: 40960
   temperature: 0.3
+
+# 服务监控探测地址（容器内）与 Agent 一键部署入口
+services:
+  apiserver_url: "http://lca-apiserver:8086"
+  syslog_health_url: "http://lca-syslog:8087"
+  logtransfer_url: "http://lca-logtransfer:8088"
+  local_admin_url: "http://127.0.0.1:8080"
+  local_api_url: "http://127.0.0.1:8086"
+  # 按实际环境填写内网 / 外网入口（也可在页面自定义）
+  internal_admin_url: "http://192.168.1.10:8080"
+  internal_api_url: "http://192.168.1.10:8086"
+  public_admin_url: ""
+  public_api_url: ""
+  syslog_host_port: 514

@@ -1,15 +1,19 @@
 # ==========================================================
 # LCA 高可用部署编排 (docker-compose.ha.yaml)
-# 使用方式: docker compose -f docker-compose.ha.yaml up -d
+# 使用方式:
+#   make docker-up-ha
+#   # 或: bash scripts/ensure-binaries.sh && docker compose -f docker-compose.ha.yaml up -d --build
 # 说明: 高可用聚焦在压力大的 Kafka 集群、ES 集群、apiserver；
 #       MySQL/Redis/admin/logtransfer 采用单实例（业务压力小）；
 #       所有应用服务日志挂载到宿主机 ./logs/<svc> 便于排查。
+# 架构: 基础设施与应用镜像均支持 linux/amd64 与 linux/arm64 (aarch64)。
 # ==========================================================
 services:
   # ==================== MySQL 单实例 ====================
 
   mysql:
-    image: ccr.ccs.tencentyun.com/lcalog/mysql8:v1
+    # 官方多架构镜像（linux/amd64 + linux/arm64）
+    image: docker.m.daocloud.io/library/mysql:8.0
     container_name: lca-mysql
     restart: always
     ports:
@@ -34,7 +38,7 @@ services:
   # ==================== Redis 单实例 ====================
 
   redis:
-    image: ccr.ccs.tencentyun.com/lcalog/redis:v1
+    image: docker.m.daocloud.io/library/redis:7-alpine
     container_name: lca-redis
     restart: always
     ports:
@@ -53,7 +57,7 @@ services:
   # ==================== Kafka 集群 (3 Broker) ====================
 
   zookeeper:
-    image: ccr.ccs.tencentyun.com/lcalog/zookeeper:v1
+    image: docker.m.daocloud.io/library/zookeeper:3.9
     container_name: lca-zookeeper
     restart: always
     environment:
@@ -62,7 +66,8 @@ services:
       - lca-ha-net
 
   kafka1:
-    image: ccr.ccs.tencentyun.com/lcalog/kafka:v1
+    # wurstmeister 多架构（amd64/arm64），环境变量与历史 lcalog/kafka 兼容
+    image: docker.m.daocloud.io/wurstmeister/kafka:2.13-2.8.1
     container_name: lca-kafka1
     restart: always
     environment:
@@ -89,7 +94,7 @@ services:
       - lca-ha-net
 
   kafka2:
-    image: ccr.ccs.tencentyun.com/lcalog/kafka:v1
+    image: docker.m.daocloud.io/wurstmeister/kafka:2.13-2.8.1
     container_name: lca-kafka2
     restart: always
     environment:
@@ -115,7 +120,7 @@ services:
       - lca-ha-net
 
   kafka3:
-    image: ccr.ccs.tencentyun.com/lcalog/kafka:v1
+    image: docker.m.daocloud.io/wurstmeister/kafka:2.13-2.8.1
     container_name: lca-kafka3
     restart: always
     environment:
@@ -143,11 +148,11 @@ services:
   # ==================== Elasticsearch 集群 (3 Node) ====================
 
   es01:
-    build:
-      context: .
-      dockerfile: deploy/Dockerfile.es
+    image: docker.elastic.co/elasticsearch/elasticsearch:7.17.25
     container_name: lca-es01
     restart: always
+    entrypoint: ["/bin/tini", "--", "/bin/bash", "/usr/local/bin/lca-es-entrypoint.sh"]
+    command: ["eswrapper"]
     environment:
       - TZ=Asia/Shanghai
       - node.name=es01
@@ -155,7 +160,8 @@ services:
       - discovery.seed_hosts=es02,es03
       - cluster.initial_master_nodes=es01,es02,es03
       - bootstrap.memory_lock=true
-      - "ES_JAVA_OPTS=${ES_JAVA_OPTS:--Xms512m -Xmx512m}"
+      - xpack.security.enabled=false
+      - "ES_JAVA_OPTS=${ES_JAVA_OPTS:--Xms512m -Xmx512m} -Duser.timezone=Asia/Shanghai"
       - "path.repo=/data/backups"
       - bootstrap.system_call_filter=false
     ulimits:
@@ -164,6 +170,7 @@ services:
     volumes:
       - es01_data:/usr/share/elasticsearch/data
       - es_backups:/data/backups
+      - ./deploy/es/entrypoint.sh:/usr/local/bin/lca-es-entrypoint.sh:ro
     ports:
       - "9200:9200"
     healthcheck:
@@ -175,11 +182,11 @@ services:
       - lca-ha-net
 
   es02:
-    build:
-      context: .
-      dockerfile: deploy/Dockerfile.es
+    image: docker.elastic.co/elasticsearch/elasticsearch:7.17.25
     container_name: lca-es02
     restart: always
+    entrypoint: ["/bin/tini", "--", "/bin/bash", "/usr/local/bin/lca-es-entrypoint.sh"]
+    command: ["eswrapper"]
     environment:
       - TZ=Asia/Shanghai
       - node.name=es02
@@ -187,7 +194,8 @@ services:
       - discovery.seed_hosts=es01,es03
       - cluster.initial_master_nodes=es01,es02,es03
       - bootstrap.memory_lock=true
-      - "ES_JAVA_OPTS=${ES_JAVA_OPTS:--Xms512m -Xmx512m}"
+      - xpack.security.enabled=false
+      - "ES_JAVA_OPTS=${ES_JAVA_OPTS:--Xms512m -Xmx512m} -Duser.timezone=Asia/Shanghai"
       - "path.repo=/data/backups"
       - bootstrap.system_call_filter=false
     ulimits:
@@ -196,15 +204,16 @@ services:
     volumes:
       - es02_data:/usr/share/elasticsearch/data
       - es_backups:/data/backups
+      - ./deploy/es/entrypoint.sh:/usr/local/bin/lca-es-entrypoint.sh:ro
     networks:
       - lca-ha-net
 
   es03:
-    build:
-      context: .
-      dockerfile: deploy/Dockerfile.es
+    image: docker.elastic.co/elasticsearch/elasticsearch:7.17.25
     container_name: lca-es03
     restart: always
+    entrypoint: ["/bin/tini", "--", "/bin/bash", "/usr/local/bin/lca-es-entrypoint.sh"]
+    command: ["eswrapper"]
     environment:
       - TZ=Asia/Shanghai
       - node.name=es03
@@ -212,7 +221,8 @@ services:
       - discovery.seed_hosts=es01,es02
       - cluster.initial_master_nodes=es01,es02,es03
       - bootstrap.memory_lock=true
-      - "ES_JAVA_OPTS=${ES_JAVA_OPTS:--Xms512m -Xmx512m}"
+      - xpack.security.enabled=false
+      - "ES_JAVA_OPTS=${ES_JAVA_OPTS:--Xms512m -Xmx512m} -Duser.timezone=Asia/Shanghai"
       - "path.repo=/data/backups"
       - bootstrap.system_call_filter=false
     ulimits:
@@ -221,6 +231,7 @@ services:
     volumes:
       - es03_data:/usr/share/elasticsearch/data
       - es_backups:/data/backups
+      - ./deploy/es/entrypoint.sh:/usr/local/bin/lca-es-entrypoint.sh:ro
     networks:
       - lca-ha-net
 
@@ -232,6 +243,7 @@ services:
       dockerfile: deploy/Dockerfile
       args:
         APP_NAME: admin
+        TARGETARCH: ${LCA_TARGETARCH}
     container_name: lca-admin
     restart: always
     volumes:
@@ -241,6 +253,8 @@ services:
       - ./data/admin:/app/data
       # 日志挂载到宿主机便于排查
       - ./logs/admin:/app/logs
+      # 商业交付：预编译 Agent，供一键部署脚本从管理端下载
+      - ./release/bin:/app/agent-bin:ro
     environment:
       # 也可通过环境变量手动锁定机器ID（客户购买后设置可避免任何意外变化）
       LCA_MACHINE_ID: "${LCA_MACHINE_ID:-}"
@@ -271,6 +285,7 @@ services:
       dockerfile: deploy/Dockerfile
       args:
         APP_NAME: apiserver
+        TARGETARCH: ${LCA_TARGETARCH}
     container_name: lca-apiserver1
     restart: always
     environment:
@@ -301,6 +316,7 @@ services:
       dockerfile: deploy/Dockerfile
       args:
         APP_NAME: apiserver
+        TARGETARCH: ${LCA_TARGETARCH}
     container_name: lca-apiserver2
     restart: always
     environment:
@@ -331,6 +347,7 @@ services:
       dockerfile: deploy/Dockerfile
       args:
         APP_NAME: logtransfer
+        TARGETARCH: ${LCA_TARGETARCH}
     container_name: lca-logtransfer
     restart: always
     volumes:
@@ -359,6 +376,7 @@ services:
       dockerfile: deploy/Dockerfile
       args:
         APP_NAME: syslog
+        TARGETARCH: ${LCA_TARGETARCH}
     container_name: lca-syslog
     restart: always
     ports:

@@ -48,20 +48,30 @@ export API_URL ADMIN_URL AGENT_ID BATCH_SIZE FLUSH_SECONDS PUSH_CONCURRENCY HOST
 envsubst < config.template.yaml > config.yaml
 echo ">> 已生成 config.yaml"
 
-# ---------- 3. 检查二进制文件 ----------
+# ---------- 3. 检查二进制文件（按本机架构） ----------
 BINARY="logcollect"
-BINARY_SRC="${SCRIPT_DIR}/../../release/bin/${BINARY}"
+ROOT_DIR="$(cd "${SCRIPT_DIR}/../.." && pwd)"
+case "$(uname -m)" in
+    x86_64|amd64) GOARCH=amd64 ;;
+    aarch64|arm64) GOARCH=arm64 ;;
+    *) echo "ERROR: 不支持的架构 $(uname -m)"; exit 1 ;;
+esac
 
 if [ ! -f "$BINARY" ]; then
-    if [ -f "$BINARY_SRC" ]; then
-        cp "$BINARY_SRC" "$BINARY"
-        echo ">> 已从 release/bin/ 复制二进制"
-    else
-        echo "ERROR: 未找到 logcollect 二进制文件"
-        echo "  请先执行: cd $(dirname "$SCRIPT_DIR")/.. && make release"
-        echo "  然后将 release/bin/logcollect 复制到此目录"
-        exit 1
-    fi
+    for candidate in \
+        "${ROOT_DIR}/release/bin/${GOARCH}/${BINARY}" \
+        "${ROOT_DIR}/release/bin/${BINARY}"; do
+        if [ -f "$candidate" ]; then
+            cp "$candidate" "$BINARY"
+            echo ">> 已从 $candidate 复制二进制 (${GOARCH})"
+            break
+        fi
+    done
+fi
+if [ ! -f "$BINARY" ]; then
+    echo "ERROR: 未找到 logcollect 二进制文件（架构 ${GOARCH}）"
+    echo "  请先执行: cd $ROOT_DIR && make release-native"
+    exit 1
 fi
 
 # ---------- 4. 创建运行时目录/文件 ----------
