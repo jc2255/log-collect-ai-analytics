@@ -836,6 +836,16 @@ log-collect-ai-analytics/
 
 ## 故障排查
 
+### 页面 502 或登录验证码不出现
+
+高可用部署下，前端静态资源与验证码接口都经 Nginx 转发。出现 **502**、登录页**验证码空白/不加载**时，先重建并重启 Nginx（不牵动其它服务）：
+
+```bash
+docker compose -f docker-compose.ha.yaml up -d --build --no-deps nginx
+```
+
+仍异常时再查：`docker compose -f docker-compose.ha.yaml logs nginx admin`，并确认 `release/web-dist` 已是最新前端产物。
+
 ### 使用 trace_id 定位问题（推荐）
 
 所有走 `/api/v1/log/push` 的请求会获得一个全链路 `trace_id`，同一条日志在 4 个组件中均可以该 ID 串联。出问题时，只需拿到 trace_id 后依次类似以下检索：
