@@ -762,11 +762,6 @@ INSERT IGNORE INTO `role_menus` (`role_id`,`menu_id`) VALUES
 -- 测试：日志查询
 (4,4),(4,42);
 
--- 日志库示例（敏感配置留空，部署后在界面填写）
-INSERT IGNORE INTO `log_stores` (`id`,`created_at`,`updated_at`,`deleted_at`,`name`,`description`,`index_pattern`,`api_key`,`kafka_topic`,`status`,`compress`,`roll_max_days`,`roll_max_size_gb`,`cold_days`,`delete_days`,`ai_alert_enabled`,`ai_alert_config`,`oss_repository`,`oss_endpoint`,`oss_bucket`,`oss_access_key_id`,`oss_access_key_secret`,`oss_path`,`oss_chunk_size`) VALUES
-(1,NOW(),NOW(),NULL,'lca',    'lca应用日志',    '','ak_nginx_001',  'lca-app',        1,1,7,50,30,90,0,NULL,'','','','','','lca/','500mb'),
-(2,NOW(),NOW(),NULL,'syslog', 'syslog协议日志', '','ak_backend_002','lca_syslog-app',  1,1,7, 0,15,60,0,NULL,'','','','','','',    '500mb');
-
 -- AI智能体默认设置
 INSERT IGNORE INTO `ai_agent_settings` (`id`,`max_search_size`,`max_agg_size`,`max_tool_rounds`,`max_history_msgs`,`temperature`,`max_tokens`) VALUES
 (1, 100, 50, 5, 20, 0.3, 40960);

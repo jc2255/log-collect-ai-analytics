@@ -1,1 +1,0 @@
-import{D as e,Ut as t}from"./index-FVqdZu7k.js";function n(){let n=t([]),r=t(!1);async function i(t=200){r.value=!0;try{let r=await e.list({page:1,page_size:t});n.value=r.data?.list||r.data||[]}catch{n.value=[]}finally{r.value=!1}}return{stores:n,loading:r,loadStores:i}}export{n as t};
