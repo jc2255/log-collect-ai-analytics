@@ -1,0 +1,1 @@
+var e={wecom:`企业微信`,dingtalk:`钉钉`,feishu:`飞书`,email:`邮件`,webhook:`自定义回调`,aliyun_sms:`阿里云短信`};function t(t){return t?e[t]||t:``}function n(e){if(!e)return``;let n=String(e.name||``).trim(),r=t(e.type);return n?!r||n===r||n.includes(r)?n:`${n}（${r}）`:r||String(e.type||``)}export{n as t};
