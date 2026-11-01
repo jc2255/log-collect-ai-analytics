@@ -1,0 +1,1 @@
+import{Ht as e,O as t}from"./index-CQtga7K3.js";function n(){let n=e([]),r=e(!1);async function i(e=200){r.value=!0;try{let r=await t.list({page:1,page_size:e});n.value=r.data?.list||r.data||[]}catch{n.value=[]}finally{r.value=!1}}return{stores:n,loading:r,loadStores:i}}export{n as t};
